@@ -1,0 +1,8 @@
+# List of the allowed cbsd commands
+SECCMD="\
+${SECCMD}
+puppet \
+sync_env2form \
+puppet_copy_manifest \
+puppet-cbsdpuppetjail 
+"
