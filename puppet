@@ -97,6 +97,7 @@ apply_in_jail_local()
 
 	#jexec jname=${jname} env LANG=en_US.UTF-8 /usr/local/bin/puppet apply /tmp/cbsdpuppet/manifest/init.pp --detailed-exitcodes --verbose --show_diff --summarize --hiera_config=/tmp/cbsdpuppet/hiera.yaml --app_management --modulepath=/usr/local/etc/puppet/modules
 	#jexec jname=${jname} env LANG=en_US.UTF-8 /usr/local/bin/puppet apply /tmp/cbsdpuppet/manifest/init.pp --detailed-exitcodes --verbose --show_diff --summarize --hiera_config=/tmp/cbsdpuppet/hiera.yaml --modulepath=/usr/local/etc/puppet/modules
+	echo "[debug] jexec jname=${jname} env LANG=en_US.UTF-8 /tmp/cbsdpuppet/puppetcbsd /tmp/cbsd/manifest/init.pp"
 	jexec jname=${jname} env LANG=en_US.UTF-8 /tmp/cbsdpuppet/puppetcbsd /tmp/cbsd/manifest/init.pp
 
 	echo "***"
@@ -165,6 +166,7 @@ puppet_setup()
 
 	case "${puppet_apply_method}" in
 		local)
+			pkg mode=bootstrap jname=${jname}
 			[ ! -d ${path}/tmp/cbsd/manifest ] && /bin/mkdir -p ${path}/tmp/cbsd/manifest
 			[ ! -d ${path}/tmp/cbsd/hieradata ] && /bin/mkdir -p ${path}/tmp/cbsd/hieradata
 			jail_manifest="${path}/tmp/cbsd/manifest/init.pp"
