@@ -12,14 +12,15 @@
 #                               Set it to "YES" to enable redmine.
 # redmine_flags (str):          Custom additional arguments to be passed
 #                               to redmine.
-# redmine_user (str):        User account to run thin with. (default: www)
-# redmine_group (str):        Group to run thin with. (default: www)
+# redmine_user (str):          User account to run thin with. (default: www)
+# redmine_group (str):         Group to run thin with. (default: www)
+
 
 . /etc/rc.subr
 
 name="redmine"
 rcvar=redmine_enable
-command=ruby23
+command=ruby24
 
 pidfile="/usr/local/www/redmine/tmp/pids/thin.pid"
 
