@@ -1,7 +1,7 @@
 #!/usr/local/bin/cbsd
 #v11.0.14
 MYARG="module jname"
-MYOPTARG="mode formfile"
+MYOPTARG="mode formfile debug"
 MYDESC="Generate puppet manifests"
 ADDHELP="module= specify module name\n\
 mode= apply - puppet apply\n\
@@ -12,6 +12,7 @@ jname= can cbsdpuppet1 for configure current system or just create manifest\n"
 . ${tools}
 . ${strings}
 
+debug=0
 init $*
 
 . ${jrcconf}
@@ -98,8 +99,11 @@ apply_in_jail_local()
 	#jexec jname=${jname} env LANG=en_US.UTF-8 /usr/local/bin/puppet apply /tmp/cbsdpuppet/manifest/init.pp --detailed-exitcodes --verbose --show_diff --summarize --hiera_config=/tmp/cbsdpuppet/hiera.yaml --app_management --modulepath=/usr/local/etc/puppet/modules
 	#jexec jname=${jname} env LANG=en_US.UTF-8 /usr/local/bin/puppet apply /tmp/cbsdpuppet/manifest/init.pp --detailed-exitcodes --verbose --show_diff --summarize --hiera_config=/tmp/cbsdpuppet/hiera.yaml --modulepath=/usr/local/etc/puppet/modules
 	echo "[debug] jexec jname=${jname} env LANG=en_US.UTF-8 /tmp/cbsdpuppet/puppetcbsd /tmp/cbsd/manifest/init.pp"
-	jexec jname=${jname} env LANG=en_US.UTF-8 /tmp/cbsdpuppet/puppetcbsd /tmp/cbsd/manifest/init.pp
-
+	if [ ${debug} -eq 1 ]; then
+		jexec jname=${jname} env LANG=en_US.UTF-8 /tmp/cbsdpuppet/puppetcbsd debug /tmp/cbsd/manifest/init.pp
+	else
+		jexec jname=${jname} env LANG=en_US.UTF-8 /tmp/cbsdpuppet/puppetcbsd /tmp/cbsd/manifest/init.pp
+	fi
 	echo "***"
 
 	/sbin/umount ${path}/tmp/cbsdpuppet

@@ -8,7 +8,7 @@ class loginconf (
         mode => '0644',
     }
 
-    exec {"cap_mkdb /etc/login.conf":
+    exec {"/usr/bin/cap_mkdb /etc/login.conf":
         subscribe   => File['/etc/login.conf'],
         refreshonly => true,
     }

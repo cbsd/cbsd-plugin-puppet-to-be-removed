@@ -65,6 +65,13 @@ ldconfig_start()
 #exit 0
 
 #### OLD method ###
+if [ "${1}" = "debug" ]; then
+	shift
+	debug_args="debug"
+else
+	debug_args="crit"
+fi
+
 DIR="/tmp/puppet"
 init_ruby_path
 
@@ -83,7 +90,6 @@ export PATH=${DIR}/bin:${DIR}/sbin:$PATH
 #facter
 #echo "${DIR}/bin/ruby -I/tmp/puppet/lib/ruby/vendor_ruby -I ${DIR}/lib/ruby/${RUBY_VER}/ -I ${DIR}/bin/ -I ${RUBY_PLATFORM_DIR} -I ${DIR}/lib/ruby/site_ruby/${RUBY_VER}/ ${DIR}/bin/puppet apply --color false --modulepath=${modulepath} --show_diff --hiera_config=/tmp/cbsdpuppet/hiera.yaml --app_management --modulepath=/etc/puppetveil/code/environments/production/modules --log_level=debug"
 #debug_args="debug"
-debug_args="crit"
 echo "Module path: ${modulepath}"
 #${DIR}/bin/ruby -I${DIR}/lib/ruby/vendor_ruby -I "${DIR}/lib/ruby/${RUBY_VER}/" -I "${DIR}/bin/" -I "${RUBY_PLATFORM_DIR}" -I "${DIR}/lib/ruby/site_ruby/${RUBY_VER}/" ${DIR}/bin/puppet apply $@ --color false --modulepath=${modulepath} --show_diff --hiera_config=/tmp/cbsdpuppet/hiera.yaml --modulepath=/etc/puppetveil/code/environments/production/modules --log_level=${error_level} --debug
 ${DIR}/bin/ruby -I${DIR}/lib/ruby/vendor_ruby -I \
