@@ -257,8 +257,8 @@ case "${mode}" in
 		puppet_setup
 		;;
 	*)
-#		echo "Manifest dir: $local_puppet_manifest_dir"
-#		echo "Hiera dir: $local_puppet_hieradata_dir"
+		echo "Manifest dir: $local_puppet_manifest_dir" >&2
+		echo "Hiera dir: $local_puppet_hieradata_dir" >&2
 
 		generate_manifest > ${local_puppet_manifest_dir}/${module}.pp
 		generate_hieradata > ${local_puppet_hieradata_dir}/${module}.yaml
