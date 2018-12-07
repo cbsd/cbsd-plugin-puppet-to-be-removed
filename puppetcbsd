@@ -96,6 +96,10 @@ ${DIR}/bin/ruby -I${DIR}/lib/ruby/vendor_ruby -I \
 "${DIR}/lib/ruby/${RUBY_VER}/" -I "${DIR}/bin/" -I "${RUBY_PLATFORM_DIR}" \
 -I "${DIR}/lib/ruby/site_ruby/${RUBY_VER}/" \
 ${DIR}/bin/puppet apply $@ --show_diff --hiera_config=/tmp/cbsdpuppet/hiera.yaml --modulepath=${modulepath} --log_level=${debug_args} 2>&1 
+
+echo "${DIR}/bin/puppet apply $@ --show_diff --hiera_config=/tmp/cbsdpuppet/hiera.yaml --modulepath=${modulepath} --log_level=${debug_args}"
+
+[ "${debug_args}" = "debug" ] && read p
 #|tee /tmp/out.txt
 
 #read p

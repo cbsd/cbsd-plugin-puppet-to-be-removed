@@ -1,5 +1,23 @@
 # Changelog
 
+## 3.0.0
+
+- Fix support for 'puppet generate types'
+
+## 2.2.4
+
+- Revert the 'puppet generate types' fix due to a discovery that it does not
+  work properly prior to puppet 4.10.4 due to a bug in puppet.
+
+## 2.2.3
+
+- Fix support for 'puppet generate types'
+- Added CentOS and OracleLinux to supported OS list
+
+## 2.2.2
+
+- Upped supported Puppet versions to include Puppet 5
+
 ## 2.2.1
 
 - Only remove seq entries in array entries (GH #10)
