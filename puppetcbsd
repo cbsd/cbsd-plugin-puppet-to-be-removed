@@ -73,35 +73,36 @@ else
 fi
 
 DIR="/tmp/puppet"
-init_ruby_path
 
-GEM_PATH="${DIR}/lib/ruby/${RUBY_VER}/:${DIR}/:${DIR}/bin/:${RUBY_PLATFORM_DIR}/:${DIR}/lib/ruby/site_ruby/${RUBY_VER}/:${DIR}/PPP/lib/ruby/vendor_ruby"
-GEM_HOME="${DIR}/lib/ruby/${RUBY_VER}/:${RUBY_PLATFORM_DIR}/:${DIR}/lib/ruby/site_ruby/${RUBY_VER}/:${DIR}/PPP/lib/ruby/vendor_ruby"
-#modulepath="${DIR}/etc/puppet/environments/production/modules"
+if [ -x /usr/local/bin/puppet ]; then
+	PUPPET_CMD=/usr/local/bin/puppet
+	local_puppet=1
+else
+	PUPPET_CMD="${DIR}/bin/puppet"
+	init_ruby_path
+	GEM_PATH="${DIR}/lib/ruby/${RUBY_VER}/:${DIR}/:${DIR}/bin/:${RUBY_PLATFORM_DIR}/:${DIR}/lib/ruby/site_ruby/${RUBY_VER}/:${DIR}/PPP/lib/ruby/vendor_ruby"
+	GEM_HOME="${DIR}/lib/ruby/${RUBY_VER}/:${RUBY_PLATFORM_DIR}/:${DIR}/lib/ruby/site_ruby/${RUBY_VER}/:${DIR}/PPP/lib/ruby/vendor_ruby"
+	ldconfig_paths="${DIR}/lib /usr/local/lib"
+	ldconfig_start
+	local_puppet=0
+	export PATH=${DIR}/bin:${DIR}/sbin:$PATH
+fi
+
 modulepath="/tmp/cbsdpuppet/modules/public"
-
-ldconfig_paths="${DIR}/lib /usr/local/lib"
-#
-ldconfig_start
-#
-#"${DIR}/bin/ruby" -I "${DIR}/lib/ruby/${RUBY_VER}/" -I "${DIR}/bin/" -I "${RUBY_PLATFORM_DIR}" -I "${DIR}/lib/ruby/site_ruby/${RUBY_VER}/" ${DIR}/bin/puppet config set hiera_config /tmp/puppet/etc/puppet/hiera.yaml
-#"${DIR}/bin/ruby" -I "${DIR}/lib/ruby/${RUBY_VER}/" -I "${DIR}/bin/" -I "${RUBY_PLATFORM_DIR}" -I "${DIR}/lib/ruby/site_ruby/${RUBY_VER}/" ${DIR}/bin/puppet apply --color false --modulepath=${modulepath} $@
-export PATH=${DIR}/bin:${DIR}/sbin:$PATH
-#facter
-#echo "${DIR}/bin/ruby -I/tmp/puppet/lib/ruby/vendor_ruby -I ${DIR}/lib/ruby/${RUBY_VER}/ -I ${DIR}/bin/ -I ${RUBY_PLATFORM_DIR} -I ${DIR}/lib/ruby/site_ruby/${RUBY_VER}/ ${DIR}/bin/puppet apply --color false --modulepath=${modulepath} --show_diff --hiera_config=/tmp/cbsdpuppet/hiera.yaml --app_management --modulepath=/etc/puppetveil/code/environments/production/modules --log_level=debug"
-#debug_args="debug"
 echo "Module path: ${modulepath}"
-#${DIR}/bin/ruby -I${DIR}/lib/ruby/vendor_ruby -I "${DIR}/lib/ruby/${RUBY_VER}/" -I "${DIR}/bin/" -I "${RUBY_PLATFORM_DIR}" -I "${DIR}/lib/ruby/site_ruby/${RUBY_VER}/" ${DIR}/bin/puppet apply $@ --color false --modulepath=${modulepath} --show_diff --hiera_config=/tmp/cbsdpuppet/hiera.yaml --modulepath=/etc/puppetveil/code/environments/production/modules --log_level=${error_level} --debug
-${DIR}/bin/ruby -I${DIR}/lib/ruby/vendor_ruby -I \
-"${DIR}/lib/ruby/${RUBY_VER}/" -I "${DIR}/bin/" -I "${RUBY_PLATFORM_DIR}" \
--I "${DIR}/lib/ruby/site_ruby/${RUBY_VER}/" \
-${DIR}/bin/puppet apply $@ --show_diff --hiera_config=/tmp/cbsdpuppet/hiera.yaml --modulepath=${modulepath} --log_level=${debug_args} 2>&1 
 
-echo "${DIR}/bin/puppet apply $@ --show_diff --hiera_config=/tmp/cbsdpuppet/hiera.yaml --modulepath=${modulepath} --log_level=${debug_args}"
+case ${local_puppet} in
+	1)
+		${PUPPET_CMD} apply $@ --show_diff --hiera_config=/tmp/cbsdpuppet/hiera.yaml --modulepath=${modulepath} --log_level=${debug_args} 2>&1
+		;;
+	0)
+		${DIR}/bin/ruby -I${DIR}/lib/ruby/vendor_ruby -I \
+		"${DIR}/lib/ruby/${RUBY_VER}/" -I "${DIR}/bin/" -I "${RUBY_PLATFORM_DIR}" \
+		-I "${DIR}/lib/ruby/site_ruby/${RUBY_VER}/" \
+		${PUPPET_CMD} apply $@ --show_diff --hiera_config=/tmp/cbsdpuppet/hiera.yaml --modulepath=${modulepath} --log_level=${debug_args} 2>&1 
+		;;
+esac
+
+echo "${PUPPET_CMD} apply $@ --show_diff --hiera_config=/tmp/cbsdpuppet/hiera.yaml --modulepath=${modulepath} --log_level=${debug_args}"
 
 [ "${debug_args}" = "debug" ] && read p
-#|tee /tmp/out.txt
-
-#read p
-#--hiera_config=/tmp/cbsdpuppet/hiera.yaml
-# 2>&1

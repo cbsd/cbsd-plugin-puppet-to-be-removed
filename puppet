@@ -1,22 +1,28 @@
 #!/usr/local/bin/cbsd
 #v11.0.14
 MYARG="module jname"
-MYOPTARG="mode formfile debug"
+MYOPTARG="mode formfile debug_form"
 MYDESC="Generate puppet manifests"
 ADDHELP="module= specify module name\n\
 mode= apply - puppet apply\n\
-jname= can cbsdpuppet1 for configure current system or just create manifest\n"
+jname= can CBSDSYS or cbsdpuppet1 for configure current system or just create manifest\n"
 
 . ${subr}
 . ${system}
 . ${tools}
 . ${strings}
 
-debug=0
+debug_form=0
 init $*
 
-. ${jrcconf}
-[ $? -eq 1 ] && err 1 "${MAGENTA}No such jail: ${GREEN}${jname}${NORMAL}"
+case "${jname}" in
+	CBSDSYS|cbsdpuppet1)
+		;;
+	*)
+		. ${jrcconf}
+		[ $? -eq 1 ] && err 1 "${MAGENTA}No such jail: ${GREEN}${jname}${NORMAL}"
+		;;
+esac
 
 [ -z "${mode}" ] && mode="show"
 
@@ -39,7 +45,6 @@ readconf helpers.conf
 param=$( cbsdsql ${formfile} SELECT param FROM forms ORDER BY CAST\(order_id AS int\) | /usr/bin/xargs )
 load_forms
 load_new
-
 
 apply_in_jail_remote()
 {
@@ -95,24 +100,44 @@ EOF
 apply_in_jail_local()
 {
 	echo "Apply"
+	# pkg update -f needed ? checksum mismatch error!!!
+
 
 	#jexec jname=${jname} env LANG=en_US.UTF-8 /usr/local/bin/puppet apply /tmp/cbsdpuppet/manifest/init.pp --detailed-exitcodes --verbose --show_diff --summarize --hiera_config=/tmp/cbsdpuppet/hiera.yaml --app_management --modulepath=/usr/local/etc/puppet/modules
 	#jexec jname=${jname} env LANG=en_US.UTF-8 /usr/local/bin/puppet apply /tmp/cbsdpuppet/manifest/init.pp --detailed-exitcodes --verbose --show_diff --summarize --hiera_config=/tmp/cbsdpuppet/hiera.yaml --modulepath=/usr/local/etc/puppet/modules
-	echo "[debug] jexec jname=${jname} env LANG=en_US.UTF-8 /tmp/cbsdpuppet/puppetcbsd /tmp/cbsd/manifest/init.pp"
-	if [ ${debug} -eq 1 ]; then
-		jexec jname=${jname} env LANG=en_US.UTF-8 /tmp/cbsdpuppet/puppetcbsd debug /tmp/cbsd/manifest/init.pp
+	if [ ${debug_form} -eq 1 ]; then
+		case "${jname}" in
+			CBSDSYS)
+				echo "[debug] env LANG=en_US.UTF-8 /tmp/cbsdpuppet/puppetcbsd debug /tmp/cbsd/manifest/init.pp"
+				env LANG=en_US.UTF-8 /tmp/cbsdpuppet/puppetcbsd debug /tmp/cbsd/manifest/init.pp
+				;;
+			*)
+				echo "[debug] jexec jname=${jname} env LANG=en_US.UTF-8 /tmp/cbsdpuppet/puppetcbsd /tmp/cbsd/manifest/init.pp"
+				jexec jname=${jname} env LANG=en_US.UTF-8 /tmp/cbsdpuppet/puppetcbsd debug /tmp/cbsd/manifest/init.pp
+				;;
+		esac
 	else
-		jexec jname=${jname} env LANG=en_US.UTF-8 /tmp/cbsdpuppet/puppetcbsd /tmp/cbsd/manifest/init.pp
+		case "${jname}" in
+			CBSDSYS)
+				env LANG=en_US.UTF-8 /tmp/cbsdpuppet/puppetcbsd /tmp/cbsd/manifest/init.pp
+				;;
+			*)
+				jexec jname=${jname} env LANG=en_US.UTF-8 /tmp/cbsdpuppet/puppetcbsd /tmp/cbsd/manifest/init.pp
+				;;
+		esac
 	fi
 	echo "***"
 
 	/sbin/umount ${path}/tmp/cbsdpuppet
 	/sbin/umount ${path}/tmp/puppet
-	if [ ${_was_started} -eq 0 ]; then
-		jstop jname=${jname}
-		jcleanup jname=${jname}
-	else
-		[ -n "${have_restart}" ] && jexec jname=$jname ${have_restart}
+
+	if [ "${jname}" != "CBSDSYS" ]; then
+		if [ ${_was_started} -eq 0 ]; then
+			jstop jname=${jname}
+			jcleanup jname=${jname}
+		else
+			[ -n "${have_restart}" ] && jexec jname=${jname} ${have_restart}
+		fi
 	fi
 }
 
@@ -123,42 +148,47 @@ puppet_setup()
 {
 	local _was_started
 
-	if [ ${jid} -eq 0 ]; then
-		case ${emulator} in
-			jail)
-				jstart jname=${jname}
-				_was_started=0
-				;;
-			*)
-				err 1 "${EMULATOR}VM is not running: ${GREEN}${jname}${NORMAL}"
-				;;
-		esac
-	else
-		_was_started=1
-	fi
+	case "${jname}" in
+		CBSDSYS|cbsdpuppet1)
+			# local apply
+			path=
+			data=
+			baserw=1
+			emulator=jail
+			jid=1
+			;;
+		*)
+			[ ${baserw} -eq 1 ] && path="${data}"
+			[ -z "${path}" ] && err 1 "No path variable"
+
+			if [ ${jid} -eq 0 ]; then
+				case ${emulator} in
+					jail)
+						jstart jname=${jname}
+						_was_started=0
+						;;
+					*)
+						err 1 "${EMULATOR}VM is not running: ${GREEN}${jname}${NORMAL}"
+						;;
+				esac
+			else
+				_was_started=1
+			fi
+			;;
+	esac
 
 	[ ! -d ${moduledir}/puppet.d/modules/public ] && err 1 "No such ${moduledir}/puppet.d/modules/public"
 
 	if [ "${emulator}" = "jail" ]; then
-		[ ${baserw} -eq 1 ] && path="${data}"
-		[ -z "${path}" ] && err 1 "No path variable"
-		#[ ! -d ${path}/usr/local/etc/puppet/modules ] && /bin/mkdir -p ${path}/usr/local/etc/puppet/modules
-		#/bin/cp -a ${moduledir}/puppet.d/hiera.yaml ${path}/usr/local/etc/puppet/hiera.yaml
-
-		# first - mount puppet jail source
-		#[ ! -d "${path}/tmp/puppet" ] && mkdir -p ${path}/tmp/puppet
-		#/sbin/mount -t nullfs -o ro ${_jpuppet_dir} ${path}/tmp/puppet
-		#/sbin/mount -t nullfs -o ro ${moduledir}/puppet.d/modules/public ${path}/usr/local/etc/puppet/modules
-		#/sbin/mount -t nullfs -o ro ${moduledir}/puppet.d ${path}/tmp/puppet/etc/puppet
 
 		for i in ${path}/tmp/cbsdpuppet ${path}/tmp/puppet; do
-			[ ! -d ${i} ] && mkdir -p $i
+			[ ! -d ${i} ] && /bin/mkdir -p ${i}
 		done
+
 		mount_nullfs -oro /usr/local/cbsd/modules/puppet.d ${path}/tmp/cbsdpuppet
 		mount_nullfs -oro ${workdir}/jails-data/cbsdpuppet1-data/usr/local ${path}/tmp/puppet
 
 		#[ $? -ne 0 ] && err 1 "Error mount ${moduledir}/puppet.d/puppet_root/modules to /usr/local/etc/puppet/modules inside jail"
-
 		#[ ! -d ${path}/tmp/cbsd ] && /bin/mkdir -p ${path}/tmp/cbsd
 
 		if [ "${puppet_apply_method}" != "local" ]; then
@@ -170,7 +200,7 @@ puppet_setup()
 
 	case "${puppet_apply_method}" in
 		local)
-			pkg mode=bootstrap jname=${jname}
+			[ "${jname}" != "cbsdpuppet1" -a "${jname}" != "CBSDSYS" ] && pkg mode=bootstrap jname=${jname}
 			[ ! -d ${path}/tmp/cbsd/manifest ] && /bin/mkdir -p ${path}/tmp/cbsd/manifest
 			[ ! -d ${path}/tmp/cbsd/hieradata ] && /bin/mkdir -p ${path}/tmp/cbsd/hieradata
 			jail_manifest="${path}/tmp/cbsd/manifest/init.pp"
