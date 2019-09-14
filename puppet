@@ -29,14 +29,14 @@ esac
 [ -z "${formfile}" ] && formfile="${jailsysdir}/${jname}/helpers/${module}.sqlite"
 [ ! -r ${formfile} ] && err 1 "${MAGENTA}No such formfile: ${GREEN}${formfile}${NORMAL}"
 
-my_module_dir="${moduledir}/forms.d/${module}"
+my_module_dir="${distmoduledir}/forms.d/${module}"
 sitepp="${my_module_dir}/site.pp"
 
 [ ! -r ${sitepp} ] && err 1 "${MAGENTA}No such sitepp: ${GREEN}${sitepp}${NORMAL}"
 
 . ${sitepp}
 
-mksitefile="${moduledir}/forms.d/${module}/site.pp"
+mksitefile="${distmoduledir}/forms.d/${module}/site.pp"
 
 . ${workdir}/imghelper.subr
 
@@ -177,7 +177,7 @@ puppet_setup()
 			;;
 	esac
 
-	[ ! -d ${moduledir}/puppet.d/modules/public ] && err 1 "No such ${moduledir}/puppet.d/modules/public"
+	[ ! -d ${distmoduledir}/puppet.d/modules/public ] && err 1 "No such ${distmoduledir}/puppet.d/modules/public"
 
 	if [ "${emulator}" = "jail" ]; then
 
@@ -188,7 +188,7 @@ puppet_setup()
 		mount_nullfs -oro /usr/local/cbsd/modules/puppet.d ${path}/tmp/cbsdpuppet
 		mount_nullfs -oro ${workdir}/jails-data/cbsdpuppet1-data/usr/local ${path}/tmp/puppet
 
-		#[ $? -ne 0 ] && err 1 "Error mount ${moduledir}/puppet.d/puppet_root/modules to /usr/local/etc/puppet/modules inside jail"
+		#[ $? -ne 0 ] && err 1 "Error mount ${distmoduledir}/puppet.d/puppet_root/modules to /usr/local/etc/puppet/modules inside jail"
 		#[ ! -d ${path}/tmp/cbsd ] && /bin/mkdir -p ${path}/tmp/cbsd
 
 		if [ "${puppet_apply_method}" != "local" ]; then
