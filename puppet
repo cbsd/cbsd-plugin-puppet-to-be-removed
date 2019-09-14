@@ -38,7 +38,7 @@ sitepp="${my_module_dir}/site.pp"
 
 mksitefile="${distmoduledir}/forms.d/${module}/site.pp"
 
-. ${workdir}/imghelper.subr
+. ${distdir}/imghelper.subr
 
 readconf helpers.conf
 
