@@ -8,13 +8,13 @@ class rtorrent::dir {
 
     exec { "clone_cp":
         command => "/usr/local/bin/git clone https://github.com/Novik/ruTorrent.git /usr/home/web/rutorrent",
-        onlyif => "test ! -d /usr/home/web/rutorrent",
+        onlyif => "/bin/test ! -d /usr/home/web/rutorrent",
         require => File['/usr/home/web'],
     }
 
     exec { "chown_cp":
-        command => "chown -R ${::rtorrent::user}:${::rtorrent::user} /usr/home/web/rutorrent",
-        onlyif => "test -d /usr/home/web/rutorrent",
+        command => "/usr/sbin/chown -R ${::rtorrent::user}:${::rtorrent::user} /usr/home/web/rutorrent",
+        onlyif => "/bin/test -d /usr/home/web/rutorrent",
     }
 
     file { [ '/usr/home/web' ]:
