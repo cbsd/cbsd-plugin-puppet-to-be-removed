@@ -38,14 +38,15 @@
 #
 # [Remember: No empty lines between comments and class definition]
 define sudo::conf(
-  $ensure          = present,
-  $priority        = 10,
-  $content         = undef,
-  $source          = undef,
-  $sudo_config_dir = undef,
-  $sudo_file_name  = undef
-  ) {
-
+  $ensure           = present,
+  $priority         = 10,
+  $content          = undef,
+  $source           = undef,
+  $template         = undef,
+  $sudo_config_dir  = undef,
+  $sudo_file_name   = undef,
+  $sudo_syntax_path = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+) {
   include sudo
 
   # Hack to allow the user to set the config_dir from the
@@ -53,7 +54,7 @@ define sudo::conf(
   # if it is not provided. $sudo::params isn't included before
   # the parameters are loaded in.
   $sudo_config_dir_real = $sudo_config_dir ? {
-    undef            => $sudo::params::config_dir,
+    undef            => $sudo::config_dir,
     $sudo_config_dir => $sudo_config_dir
   }
 
@@ -68,12 +69,13 @@ define sudo::conf(
 
   # build current file name with path
   if $sudo_file_name != undef {
-    $cur_file = "${sudo_config_dir_real}${sudo_file_name}"
+    $cur_file = "${sudo_config_dir_real}/${sudo_file_name}"
   } else {
-    $cur_file = "${sudo_config_dir_real}${priority_real}_${dname}"
+    $cur_file = "${sudo_config_dir_real}/${priority_real}_${dname}"
   }
 
-  Class['sudo'] -> Sudo::Conf[$name]
+  # replace whitespace in file name
+  $cur_file_real = regsubst($cur_file, '\s+', '_', 'G')
 
   if $::osfamily == 'RedHat' {
     if (versioncmp($::sudoversion, '1.7.2p1') < 0) {
@@ -82,43 +84,54 @@ define sudo::conf(
   }
 
   if $content != undef {
-    if is_array($content) {
+    if $content =~ Array {
       $lines = join($content, "\n")
-      $content_real = "${lines}\n"
+      $content_real = "# This file is managed by Puppet; changes may be overwritten\n${lines}\n"
     } else {
-      $content_real = "${content}\n"
+      $content_real = "# This file is managed by Puppet; changes may be overwritten\n${content}\n"
     }
+  } elsif $template != undef {
+    $content_real = template($template)
   } else {
     $content_real = undef
   }
 
   if $ensure == 'present' {
-    $notify_real = Exec["sudo-syntax-check for file ${cur_file}"]
+    if $sudo::validate_single {
+      $validate_cmd_real = 'visudo -c -f %'
+    } else {
+      $validate_cmd_real = undef
+    }
+    if $sudo::delete_on_error {
+      $notify_real = Exec["sudo-syntax-check for file ${cur_file}"]
+      $delete_cmd = "( rm -f '${cur_file_real}' && exit 1)"
+    } else {
+      $notify_real = Exec["sudo-syntax-check for file ${cur_file}"]
+      $errormsg = "Error on global-syntax-check with file ${cur_file_real}"
+      $delete_cmd = "( echo '${errormsg}' && echo '#${errormsg}' >>${cur_file_real} && exit 1)"
+    }
   } else {
+    $delete_cmd = ''
     $notify_real = undef
+    $validate_cmd_real = undef
   }
 
   file { "${priority_real}_${dname}":
-    ensure  => $ensure,
-    path    => $cur_file,
-    owner   => 'root',
-    group   => $sudo::params::config_file_group,
-    mode    => '0440',
-    source  => $source,
-    content => $content_real,
-    notify  => $notify_real,
+    ensure       => $ensure,
+    path         => $cur_file_real,
+    owner        => 'root',
+    group        => $sudo::params::config_file_group,
+    mode         => $sudo::params::config_file_mode,
+    source       => $source,
+    content      => $content_real,
+    notify       => $notify_real,
+    require      => File[$sudo_config_dir_real],
+    validate_cmd => $validate_cmd_real,
   }
 
   exec {"sudo-syntax-check for file ${cur_file}":
-    command     => "visudo -c -f ${cur_file} || ( rm -f '${cur_file}' && exit 1)",
+    command     => "visudo -c || ${delete_cmd}",
     refreshonly => true,
-    path        => [
-      '/bin',
-      '/sbin',
-      '/usr/bin',
-      '/usr/sbin',
-      '/usr/local/bin',
-      '/usr/local/sbin'
-    ],
+    path        => $sudo_syntax_path,
   }
 }

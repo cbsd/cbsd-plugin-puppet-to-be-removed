@@ -49,6 +49,10 @@
 #   Hash of defaults params php::fpm::pool resources that will be created.
 #   Defaults is empty hash.
 #
+# [*pool_purge*]
+#   Whether to purge pool config files not created
+#   by this module
+#
 class php::fpm (
   String $ensure                = $php::ensure,
   $user                         = $php::fpm_user,
@@ -64,13 +68,14 @@ class php::fpm (
   Hash $pools                   = $php::real_fpm_pools,
   $log_owner                    = $php::log_owner,
   $log_group                    = $php::log_group,
+  Boolean $pool_purge           = $php::pool_purge,
 ) {
 
   if ! defined(Class['php']) {
     warning('php::fpm is private')
   }
 
-  $real_settings = deep_merge($settings, hiera_hash('php::fpm::settings', {}))
+  $real_settings = $settings
 
   # On FreeBSD fpm is not a separate package, but included in the 'php' package.
   # Implies that the option SET+=FPM was set when building the port.
@@ -85,13 +90,14 @@ class php::fpm (
   }
 
   class { 'php::fpm::config':
-    user      => $user,
-    group     => $group,
-    inifile   => $inifile,
-    settings  => $real_settings,
-    log_owner => $log_owner,
-    log_group => $log_group,
-    require   => Package[$real_package],
+    user       => $user,
+    group      => $group,
+    inifile    => $inifile,
+    settings   => $real_settings,
+    log_owner  => $log_owner,
+    log_group  => $log_group,
+    pool_purge => $pool_purge,
+    require    => Package[$real_package],
   }
 
   contain 'php::fpm::config'
@@ -99,8 +105,8 @@ class php::fpm (
 
   Class['php::fpm::config'] ~> Class['php::fpm::service']
 
-  $real_global_pool_settings = hiera_hash('php::fpm::global_pool_settings', $global_pool_settings)
-  $real_pools = hiera_hash('php::fpm::pools', $pools)
+  $real_global_pool_settings = $global_pool_settings
+  $real_pools = $pools
   create_resources(::php::fpm::pool, $real_pools, $real_global_pool_settings)
 
   # Create an override to use a reload signal as trusty and utopic's
@@ -114,7 +120,7 @@ class php::fpm (
     else {
       $fpm_override = "reload signal USR2\nmanual"
     }
-    file { "/etc/init/${::php::fpm::service::service_name}.override":
+    file { "/etc/init/${php::fpm::service::service_name}.override":
       content => $fpm_override,
       before  => Package[$real_package],
     }

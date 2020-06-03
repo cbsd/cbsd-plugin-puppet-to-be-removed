@@ -28,7 +28,8 @@ class php::globals (
 
   $default_php_version = $facts['os']['name'] ? {
     'Debian' => $facts['os']['release']['major'] ? {
-      '9' => '7.0',
+      '9'     => '7.0',
+      '10'    => '7.3',
       default => '5.x',
     },
     'Ubuntu' => $facts['os']['release']['major'] ? {
@@ -77,6 +78,7 @@ class php::globals (
         }
       } else {
         case $globals_php_version {
+          /^5\.6/,
           /^7\.[0-9]/: {
             $default_config_root  = "/etc/php/${globals_php_version}"
             $default_fpm_pid_file = "/var/run/php/php${globals_php_version}-fpm.pid"
@@ -142,6 +144,14 @@ class php::globals (
       }
     }
     'FreeBSD': {
+      case $globals_php_version {
+        /^(\d)\.(\d)$/: {
+          $package_prefix = "php${1}${2}-"
+        }
+        default: {
+          $package_prefix = 'php56-'
+        }
+      }
       $default_config_root  = '/usr/local/etc'
       $default_fpm_pid_file = '/var/run/php-fpm.pid'
       $fpm_service_name     = undef

@@ -7,8 +7,7 @@
 [![Puppet Forge - endorsement](https://img.shields.io/puppetforge/e/puppet/nginx.svg)](https://forge.puppetlabs.com/puppet/nginx)
 [![Puppet Forge - scores](https://img.shields.io/puppetforge/f/puppet/nginx.svg)](https://forge.puppetlabs.com/puppet/nginx)
 
-This module was migrated from James Fryman <james@frymanet.com> and
-Matthew Haughton <matt@3flex.com.au> to Vox Pupuli.
+This module was migrated from James Fryman <james@frymanet.com> to Vox Pupuli.
 
 ## INSTALLING OR UPGRADING
 
@@ -19,7 +18,8 @@ This module manages NGINX configuration.
 
 ### Requirements
 
-* Puppet 3.8.7 or later
+* Puppet 4.6.1 or later.  Puppet 3 was supported up until release 0.6.0.
+* apt is now a soft dependency. If your system uses apt, you'll need to configure an appropriate version of the apt module. Version 4.4.0 or higher is recommended because of the proper handling of `apt-transport-https`.
 
 ### Additional Documentation
 
@@ -29,7 +29,7 @@ This module manages NGINX configuration.
 ### Install and bootstrap an NGINX instance
 
 ```puppet
-class { 'nginx': }
+include nginx
 ```
 
 ### A simple reverse proxy
@@ -53,11 +53,23 @@ nginx::resource::server { 'www.puppetlabs.com':
 
 ```puppet
 nginx::resource::upstream { 'puppet_rack_app':
-  members => [
-    'localhost:3000',
-    'localhost:3001',
-    'localhost:3002',
-  ],
+  members => {
+    'localhost:3000' => {
+      server => 'localhost',
+      port   => 3000,
+      weight => 1,
+    },
+    'localhost:3001' => {
+      server => 'localhost',
+      port   => 3001,
+      weight => 1,
+    },
+    'localhost:3002': => {
+      server => 'localhost',
+      port   => 3002,
+      weight => 2,
+      },
+  },
 }
 
 nginx::resource::server { 'rack.puppetlabs.com':
@@ -85,6 +97,41 @@ nginx::resource::mailhost { 'domain1.example':
 }
 ```
 
+### Convert upstream members from Array to Hash
+
+The datatype Array for members of a nginx::resource::upstream is replaced by a Hash. The following configuration is no longer valid:
+
+```puppet
+nginx::resource::upstream { 'puppet_rack_app':
+  members => {
+    'localhost:3000',
+    'localhost:3001',
+    'localhost:3002',
+  },
+}
+```
+
+From now on, the configuration must look like this:
+
+```puppet
+nginx::resource::upstream { 'puppet_rack_app':
+  members => {
+    'localhost:3000' => {
+      server => 'localhost',
+      port   => 3000,
+    },
+    'localhost:3001' => {
+      server => 'localhost',
+      port   => 3001,
+    },
+    'localhost:3002' => {
+      server => 'localhost',
+      port   => 3002,
+    },
+  },
+}
+```
+
 ## SSL configuration
 
 By default, creating a server resource will only create a HTTP server. To also
@@ -96,6 +143,13 @@ the same `server_name` and a similar configuration.
 To create only a HTTPS server, set `ssl => true` and also set `listen_port` to the
 same value as `ssl_port`. Setting these to the same value disables the HTTP server.
 The resulting server will be listening on `ssl_port`.
+
+### Idempotency with nginx 1.15.0 and later
+
+By default, this module might configure the deprecated `ssl on` directive.  When
+you next run puppet, this will be removed since the `nginx_version` fact will now
+be available. To avoid this idempotency issue, you can manually set the base
+class's `nginx_version` parameter.
 
 ### Locations
 
@@ -137,9 +191,15 @@ nginx::nginx_upstreams:
   'puppet_rack_app':
     ensure: present
     members:
-      - localhost:3000
-      - localhost:3001
-      - localhost:3002
+      'localhost:3000':
+        server: 'localhost'
+        port: 3000
+      'localhost:3001':
+        server: 'localhost'
+        port: 3001
+      'localhost:3002':
+        server: 'localhost'
+        port: 3002
 nginx::nginx_servers:
   'www.puppetlabs.com':
     www_root: '/var/www/www.puppetlabs.com'
@@ -161,6 +221,42 @@ nginx::nginx_mailhosts:
     listen_port: 587
     ssl_port: 465
     starttls: only
+```
+
+### A stream syslog UDP proxy
+
+```yaml
+
+nginx::stream: true
+
+nginx::nginx_cfg_prepend:
+  include:
+    - '/etc/nginx/modules-enabled/*.conf'
+
+nginx::nginx_streamhosts:
+  'syslog':
+    ensure:                 'present'
+    listen_port:            514
+    listen_options:         'udp'
+    proxy:                  'syslog'
+    proxy_read_timeout:     '1'
+    proxy_connect_timeout:  '1'
+    raw_append:
+      - 'error_log off;'
+
+nginx::nginx_upstreams:
+  'syslog':
+    context: 'stream'
+    members:
+      '10.0.0.1:514':
+        server: '10.0.0.1'
+        port: 514
+      '10.0.0.2:514':
+        server: '10.0.0.2'
+        port: 514
+      '10.0.0.3:514':
+        server: '10.0.0.3'
+        port: 514
 ```
 
 ## Nginx with precompiled Passenger

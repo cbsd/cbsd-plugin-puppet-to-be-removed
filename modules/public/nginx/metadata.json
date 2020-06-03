@@ -1,6 +1,6 @@
 {
   "name": "puppet-nginx",
-  "version": "0.6.1-rc0",
+  "version": "1.1.0",
   "author": "Vox Pupuli",
   "summary": "Puppet NGINX management module",
   "license": "MIT",
@@ -9,30 +9,28 @@
   "issues_url": "https://github.com/voxpupuli/puppet-nginx/issues",
   "dependencies": [
     {
-      "name": "puppetlabs/stdlib",
-      "version_requirement": ">= 4.6.0 <5.0.0"
-    },
-    {
-      "name": "puppetlabs/apt",
-      "version_requirement": ">= 2.1.0 <3.0.0"
-    },
-    {
       "name": "puppetlabs/concat",
-      "version_requirement": ">= 1.2.5 <3.0.0"
+      "version_requirement": ">= 4.1.0 < 7.0.0"
+    },
+    {
+      "name": "puppetlabs/stdlib",
+      "version_requirement": ">= 5.0.0 < 7.0.0"
     }
   ],
+  "data_provider": null,
   "requirements": [
     {
       "name": "puppet",
-      "version_requirement": ">= 4.6.1 < 5.0.0"
+      "version_requirement": ">= 5.5.8 < 7.0.0"
     }
   ],
   "operatingsystem_support": [
     {
       "operatingsystem": "Debian",
       "operatingsystemrelease": [
-        "7",
-        "8"
+        "8",
+        "9",
+        "10"
       ]
     },
     {
@@ -40,6 +38,20 @@
     },
     {
       "operatingsystem": "RedHat",
+      "operatingsystemrelease": [
+        "6",
+        "7"
+      ]
+    },
+    {
+      "operatingsystem": "CentOS",
+      "operatingsystemrelease": [
+        "6",
+        "7"
+      ]
+    },
+    {
+      "operatingsystem": "VirtuozzoLinux",
       "operatingsystemrelease": [
         "6",
         "7"
@@ -58,6 +70,9 @@
       "operatingsystem": "FreeBSD"
     },
     {
+      "operatingsystem": "DragonFly"
+    },
+    {
       "operatingsystem": "NetBSD"
     },
     {
@@ -66,9 +81,8 @@
     {
       "operatingsystem": "Ubuntu",
       "operatingsystemrelease": [
-        "14.04",
-        "12.04",
-        "16.04"
+        "16.04",
+        "18.04"
       ]
     }
   ]

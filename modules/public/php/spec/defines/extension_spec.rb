@@ -12,6 +12,8 @@ describe 'php::extension' do
         etcdir =  case facts[:os]['name']
                   when 'Debian'
                     case facts[:os]['release']['major']
+                    when '10'
+                      '/etc/php/7.3/mods-available'
                     when '9'
                       '/etc/php/7.0/mods-available'
                     else
@@ -187,7 +189,22 @@ describe 'php::extension' do
           it { is_expected.to contain_php__config('xdebug').with_config('zend_extension' => '/usr/lib/php5/20100525/xdebug.so') }
         end
 
-        case facts[:osfamily]
+        if facts[:os]['family'] == 'Debian'
+          context 'on Debian family' do
+            context 'zend extensions call ext_tool_enable' do
+              let(:title) { 'xdebug' }
+              let(:params) do
+                {
+                  zend: true
+                }
+              end
+
+              it { is_expected.to contain_exec('ext_tool_enable_xdebug') }
+            end
+          end
+        end
+
+        case facts[:os]['name']
         when 'Debian'
           context 'on Debian' do
             let(:title) { 'xdebug' }
@@ -220,6 +237,21 @@ describe 'php::extension' do
                     'test'      => 'foo'
                   }
                 )
+              end
+            end
+          end
+        when 'Ubuntu'
+          context 'on Ubuntu' do
+            context 'do not setup mysql.ini' do
+              let(:title) { 'mysql' }
+              let(:params) do
+                {
+                  name: 'mysql'
+                }
+              end
+
+              it do
+                is_expected.to contain_file("#{etcdir}/mysql.ini").with(ensure: 'absent')
               end
             end
           end

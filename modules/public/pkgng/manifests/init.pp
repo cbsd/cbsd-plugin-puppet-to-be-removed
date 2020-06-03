@@ -21,12 +21,12 @@
 # @param repos Hash of resources to pass to create_resources()
 #
 class pkgng (
-  Pattern[/^\/.*/] $pkg_dbdir     = $pkgng::params::pkg_dbdir,
-  Pattern[/^\/.*/] $pkg_cachedir  = $pkgng::params::pkg_cachedir,
-  Pattern[/^\/.*/] $portsdir      = $pkgng::params::portsdir,
-  Array            $options       = [],
-  Boolean          $purge_repos_d = true,
-  Hash             $repos         = {},
+  Stdlib::Absolutepath $pkg_dbdir     = $pkgng::params::pkg_dbdir,
+  Stdlib::Absolutepath $pkg_cachedir  = $pkgng::params::pkg_cachedir,
+  Stdlib::Absolutepath $portsdir      = $pkgng::params::portsdir,
+  Array[String]        $options       = [],
+  Boolean              $purge_repos_d = true,
+  Hash                 $repos         = {},
 ) inherits pkgng::params {
 
   unless $::kernel == 'FreeBSD' {
@@ -43,32 +43,10 @@ class pkgng (
     ensure => directory,
   }
 
-  if $purge_repos_d == true {
-    File['/usr/local/etc/pkg/repos'] {
-      recurse => true,
-      purge   => true,
-    }
-
-    file { '/etc/pkg':
-      ensure  => directory,
-      purge   => true,
-      recurse => true,
-      before  => Exec['pkg update']
-    }
-  }
-
   file { '/usr/local/etc/pkg/repos':
-    ensure => directory,
-  }
-
-  file { '/etc/make.conf':
-    ensure => present,
-  }
-
-  file_line { 'WITH_PKGNG':
-    path    => '/etc/make.conf',
-    line    => "WITH_PKGNG=yes\n",
-    require => File['/etc/make.conf'],
+    ensure  => directory,
+    recurse => true,
+    purge   => $purge_repos_d,
   }
 
   # Triggered on config changes
@@ -78,18 +56,8 @@ class pkgng (
     command     => 'pkg update -q -f',
   }
 
-  # This exec should really on ever be run once, and only upon converting to
-  # pkgng. If you are building up a new system where the only software that
-  # has been installed form ports is the pkgng itself, then the pkg database
-  # is already up to date, and this is not required. As you will see,
-  # refreshonly, but nothing notifies this. I am uncertain at this time how
-  # to proceed, other than manually.
-  exec { 'convert pkg database to pkgng':
-    path        => '/usr/local/sbin',
-    refreshonly => true,
-    command     => 'pkg2ng',
-    require     => File['/etc/make.conf'],
-  }
+  Exec['pkg update']
+  -> Package <| provider == 'pkgng' or provider == undef |>
 
   # expand all pkg repositories from hashtable
   create_resources('pkgng::repo', $repos)

@@ -89,8 +89,16 @@ define php::extension::config (
     $final_settings = $full_settings
   }
 
+  if $facts['os']['name'] == 'Ubuntu' and $zend != true and $name == 'mysql' {
+    # Do not manage the .ini file if it's mysql.  PHP 7.0+ do not have
+    # mysql.so.  If mysql.ini exists and version is 7.0+, then remove it.
+    $real_ensure = 'absent'
+  } else {
+    $real_ensure = $ensure
+  }
+
   $config_root_ini = pick_default($php::config_root_ini, $php::params::config_root_ini)
-  if $ensure == 'present' or $ensure == 'installed' or $ensure == 'latest' {
+  if $real_ensure != 'absent' {
     ::php::config { $title:
       file   => "${config_root_ini}/${ini_prefix}${ini_name}.ini",
       config => $final_settings,
@@ -104,19 +112,21 @@ define php::extension::config (
 
     if $facts['os']['family'] == 'Debian' and $ext_tool_enabled {
       $cmd = "${ext_tool_enable} -s ${sapi} ${so_name}"
+      $execname = "ext_tool_enable_${so_name}"
 
       $_sapi = $sapi? {
         'ALL' => 'cli',
         default => $sapi,
       }
-      if has_key($final_settings, 'extension') and $final_settings[extension] {
-        exec { $cmd:
+      if has_key($final_settings, $extension_key) and $final_settings[$extension_key] {
+        exec { $execname:
+          command => $cmd,
           onlyif  => "${ext_tool_query} -s ${_sapi} -m ${so_name} | /bin/grep 'No module matches ${so_name}'",
           require => ::Php::Config[$title],
         }
 
         if $php::fpm {
-          Package[$php::fpm::package] ~> Exec[$cmd]
+          Package[$php::fpm::package] ~> Exec[$execname]
         }
       }
     }

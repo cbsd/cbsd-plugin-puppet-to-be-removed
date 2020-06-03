@@ -1,5 +1,5 @@
+# dir hier
 class rtorrent::dir {
-
     file { "/usr/local/etc/rc.d/rtorrent":
         mode => '0555',
         ensure  => present,
@@ -53,5 +53,4 @@ class rtorrent::dir {
         content => template("${module_name}/.rtorrent.rc.erb"),
         require => File['/usr/home/web'],
     }
-
 }

@@ -25,6 +25,9 @@
     deny <%= deny_rule %>;
     <%- end -%>
 <% end -%>
+<% if @absolute_redirect -%>
+  absolute_redirect <%= @absolute_redirect %>;
+<% end -%>
 <% if @auth_basic -%>
     auth_basic           "<%= @auth_basic %>";
 <% end -%>
@@ -73,4 +76,7 @@
     <%- @rewrite_rules.each do |rewrite_rule| -%>
     rewrite <%= rewrite_rule %>;
     <%- end -%>
+<% end -%>
+<% if @limit_zone -%>
+    limit_req zone=<%= @limit_zone %>;
 <% end -%>

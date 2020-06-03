@@ -1,9 +1,16 @@
 # MANAGED BY PUPPET
+<% @dynamic_modules.each do |mod_item| -%>
+  <%- if mod_item =~ /^\/.*/ -%>
+load_module "<%= mod_item -%>";
+  <%- else -%>
+load_module "modules/<%= mod_item -%>.so";
+  <%- end -%>
+<%- end -%>
 <% if @daemon -%>
 daemon <%= @daemon %>;
 <% end -%>
 <% if @super_user -%>
-user <%= @daemon_user %>;
+user <%= @daemon_user %><% if @daemon_group -%> <%= @daemon_group %><% end -%>;
 <% end -%>
 worker_processes <%= @worker_processes %>;
 <% if @worker_rlimit_nofile -%>
@@ -12,13 +19,6 @@ worker_rlimit_nofile <%= @worker_rlimit_nofile %>;
 
 <% if @pid -%>
 pid        <%= @pid %>;
-<% end -%>
-<% if @nginx_error_log.is_a?(Array) -%>
-  <%- @nginx_error_log.each do |log_item| -%>
-error_log  <%= log_item %> <%= @nginx_error_log_severity %>;
-  <%- end -%>
-<% else -%>
-error_log  <%= @nginx_error_log %> <%= @nginx_error_log_severity %>;
 <% end -%>
 <% if @nginx_cfg_prepend -%>
 
@@ -45,6 +45,12 @@ events {
 }
 
 http {
+<% if @http_raw_prepend && Array(@http_raw_prepend).size > 0 -%>
+    <%- Array(@http_raw_prepend).each do |line| -%>
+    <%= line %>
+    <%- end -%>
+<% end -%>
+
 <% if @http_cfg_prepend -%>
   <%- field_width = @http_cfg_prepend.inject(0) { |l,(k,v)| k.size > l ? k.size : l } -%>
   <%- @http_cfg_prepend.sort_by{|k,v| k}.each do |key,value| -%>
@@ -53,7 +59,9 @@ http {
   <%- end -%>
   <%- end -%>
 <% end -%>
-  include       <%= @conf_dir %>/mime.types;
+<% if @mime_types_path.is_a? String and @mime_types_path.empty? == false -%>
+  include       <%= @mime_types_path %>;
+<% end -%>
   default_type  application/octet-stream;
 <% if @log_format -%>
 <% @log_format.sort_by{|k,v| k}.each do |key,value| -%>
@@ -61,16 +69,36 @@ http {
 <% end -%>
 <% end -%>
 
+<% if @absolute_redirect -%>
+  absolute_redirect <%= @absolute_redirect %>;
+<% end -%>
 <% if @http_access_log.is_a?(Array) -%>
   <%- @http_access_log.each do |log_item| -%>
-  access_log  <%= log_item %><% if @http_format_log %> <%= @http_format_log%><% end %>;
+  access_log <%= log_item %><% if @http_format_log %> <%= @http_format_log%><% end %>;
   <%- end -%>
 <% else -%>
-  access_log  <%= @http_access_log %><% if @http_format_log %> <%= @http_format_log%><% end %>;
+  access_log <%= @http_access_log %><% if @http_format_log %> <%= @http_format_log%><% end %>;
+<% end -%>
+<% if @nginx_error_log.is_a?(Array) -%>
+  <%- @nginx_error_log.each do |log_item| -%>
+  error_log <%= log_item %> <%= @nginx_error_log_severity %>;
+  <%- end -%>
+<% else -%>
+  error_log <%= @nginx_error_log %> <%= @nginx_error_log_severity %>;
+<% end -%>
+
+<% if @limit_req_zone -%>
+<% if @limit_req_zone.is_a?(Array) -%>
+<%- @limit_req_zone.each do |limit_req_zone_item| -%>
+  limit_req_zone <%= limit_req_zone_item %>;
+<% end -%>
+<% else -%>
+  limit_req_zone <%= @limit_req_zone %>;
+<% end -%>
 <% end -%>
 
 <% if @sendfile == 'on' -%>
-  sendfile    on;
+  sendfile on;
   <%- if @http_tcp_nopush == 'on' -%>
   tcp_nopush on;
   <%- end -%>
@@ -90,6 +118,10 @@ http {
   lingering_timeout   <%= @lingering_timeout %>;
   tcp_nodelay         <%= @http_tcp_nodelay %>;
 
+<% if @etag -%>
+  etag <%= @etag %>;
+
+<% end -%>
 <% if @gzip == 'on' -%>
   gzip              on;
 <% if @gzip_buffers -%>
@@ -140,6 +172,12 @@ http {
 <% if @proxy_buffer_size -%>
   proxy_buffer_size       <%= @proxy_buffer_size %>;
 <% end -%>
+<% if @proxy_busy_buffers_size -%>
+  proxy_busy_buffers_size <%= @proxy_busy_buffers_size %>;
+<% end -%>
+<% if @proxy_max_temp_file_size -%>
+  proxy_max_temp_file_size <%= @proxy_max_temp_file_size %>;
+<% end -%>
 <% if @proxy_http_version -%>
   proxy_http_version      <%= @proxy_http_version %>;
 <% end -%>
@@ -171,10 +209,10 @@ http {
   <%- if @proxy_cache_loader_threshold %> loader_threshold=<%= @proxy_cache_loader_threshold %><% end -%>;
 <% end -%>
 <% if @fastcgi_cache_path -%>
-  fastcgi_cache_path        <%= @fastcgi_cache_path %> levels=<%= @fastcgi_cache_levels %> keys_zone=<%= @fastcgi_cache_keys_zone %> max_size=<%= @fastcgi_cache_max_size %> inactive=<%= @fastcgi_cache_inactive %>;
+  fastcgi_cache_path    	<%= @fastcgi_cache_path %> levels=<%= @fastcgi_cache_levels %> keys_zone=<%= @fastcgi_cache_keys_zone %> max_size=<%= @fastcgi_cache_max_size %> inactive=<%= @fastcgi_cache_inactive %>;
 <% end -%>
 <% if @fastcgi_cache_key -%>
-  fastcgi_cache_key            <%= @fastcgi_cache_key %>;
+  fastcgi_cache_key		    <%= @fastcgi_cache_key %>;
 <% end -%>
 <% if @fastcgi_cache_use_stale -%>
   fastcgi_cache_use_stale <%= @fastcgi_cache_use_stale %>;
@@ -187,6 +225,12 @@ http {
   <%= sprintf("%-*s", field_width, key) %> <%= asubvalue %>;
   <%- end -%>
   <%- end -%>
+<% end -%>
+
+<% if @http_raw_append && Array(@http_raw_append).size > 0 -%>
+    <%- Array(@http_raw_append).each do |line| -%>
+    <%= line %>
+    <%- end -%>
 <% end -%>
 
   include <%= @conf_dir %>/conf.d/*.conf;

@@ -13,6 +13,7 @@ class php::params inherits php::globals {
   $phpunit_source      = 'https://phar.phpunit.de/phpunit.phar'
   $phpunit_path        = '/usr/local/bin/phpunit'
   $phpunit_max_age     = 30
+  $pool_purge          = false
 
   case $facts['os']['family'] {
     'Debian': {
@@ -44,7 +45,7 @@ class php::params inherits php::globals {
 
       case $facts['os']['name'] {
         'Debian': {
-          $manage_repos = (versioncmp($facts['os']['release']['major'], '8') < 0)
+          $manage_repos = false
         }
 
         'Ubuntu': {
@@ -178,7 +179,7 @@ class php::params inherits php::globals {
       $fpm_group               = 'www'
       $embedded_package_suffix = 'embed'
       $embedded_inifile        = "${config_root}/php-embed.ini"
-      $package_prefix          = 'php56-'
+      $package_prefix          = $php::globals::package_prefix
       $compiler_packages       = ['gcc']
       $manage_repos            = false
       $root_group              = 'wheel'

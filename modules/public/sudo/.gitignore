@@ -1,6 +1,0 @@
-pkg/
-*.swp
-spec/fixtures/
-.vagrant/
-vendor/
-Gemfile.lock

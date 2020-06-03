@@ -111,6 +111,21 @@
 #   The package ensure of PHP pear to install and run pear auto_discover
 #
 # [*settings*]
+#   PHP configuration parameters in php.ini files as a hash. For example,
+#   'Date/date.timezone' => 'Australia/Melbourne' sets data.timezone
+#   to 'Australia/Melbourne' under [Date] section, and
+#   'PHP/memory_limit' => '256M' sets memory_limit to 256M.
+#
+# [*cli_settings*]
+#   Additional hash of PHP configuration parameters for PHP CLI. When a
+#   setting key already exists in $settings, the value provided from the
+#   $cli_settings parameter overrides the value from $settings parameter.
+#   For example, 'PHP/memory_limit' => '1000M' sets memory_limit to 1000M
+#   for the PHP cli ini file, regardless of the values from $settings.
+#
+# [*pool_purge*]
+#   Whether to purge pool config files not created
+#   by this module
 #
 class php (
   String $ensure                                  = $php::params::ensure,
@@ -120,7 +135,7 @@ class php (
   $fpm_service_ensure                             = $php::params::fpm_service_ensure,
   $fpm_service_name                               = $php::params::fpm_service_name,
   $fpm_service_provider                           = undef,
-  Hash $fpm_pools                                 = { 'www' => {} },
+  Hash $fpm_pools                                 = {},
   Hash $fpm_global_pool_settings                  = {},
   $fpm_inifile                                    = $php::params::fpm_inifile,
   $fpm_package                                    = undef,
@@ -137,6 +152,7 @@ class php (
   $proxy_server                                   = undef,
   Hash $extensions                                = {},
   Hash $settings                                  = {},
+  Hash $cli_settings                              = {},
   $package_prefix                                 = $php::params::package_prefix,
   Stdlib::Absolutepath $config_root_ini           = $php::params::config_root_ini,
   Stdlib::Absolutepath $config_root_inifile       = $php::params::config_root_inifile,
@@ -145,26 +161,29 @@ class php (
   Boolean $ext_tool_enabled                       = $php::params::ext_tool_enabled,
   String $log_owner                               = $php::params::fpm_user,
   String $log_group                               = $php::params::fpm_group,
+  Boolean $pool_purge                             = $php::params::pool_purge,
 ) inherits php::params {
 
-  $real_fpm_package = pick($fpm_package, "${package_prefix}${::php::params::fpm_package_suffix}")
+  $real_fpm_package = pick($fpm_package, "${package_prefix}${php::params::fpm_package_suffix}")
 
   $real_settings = $settings
   $real_extensions = $extensions
   $real_fpm_pools = $fpm_pools
   $real_fpm_global_pool_settings = $fpm_global_pool_settings
 
+  # Merge in additional or overridden settings for php::cli::settings.
+  $final_cli_settings = $real_settings + $cli_settings
+
   if $manage_repos {
-    class { 'php::repo': }
-    -> Anchor['php::begin']
+    contain php::repo
   }
 
-  anchor { 'php::begin': }
-    -> class { 'php::packages': }
+    class { 'php::packages': }
     -> class { 'php::cli':
-      settings => $real_settings,
+      settings => $final_cli_settings,
     }
-  -> anchor { 'php::end': }
+    contain php::packages
+    contain php::cli
 
   # Configure global PHP settings in php.ini
   if $facts['os']['family'] != 'Debian' {
@@ -172,7 +191,7 @@ class php (
     -> class {'php::global':
       settings => $real_settings,
     }
-    -> Anchor['php::end']
+    contain php::global
   }
 
   if $fpm { contain 'php::fpm' }
@@ -182,48 +201,37 @@ class php (
       fail('Enabling both cli and embedded sapis is not currently supported')
     }
 
-    Anchor['php::begin']
-      -> class { 'php::embedded':
-        settings => $real_settings,
-      }
-    -> Anchor['php::end']
+    class { 'php::embedded':
+      settings => $real_settings,
+    }
+    contain php::embedded
   }
   if $dev {
-    Anchor['php::begin']
-      -> class { 'php::dev': }
-    -> Anchor['php::end']
+    contain php::dev
   }
   if $composer {
-    Anchor['php::begin']
-      -> class { 'php::composer':
-        proxy_type   => $proxy_type,
-        proxy_server => $proxy_server,
-      }
-    -> Anchor['php::end']
+    class { 'php::composer':
+      proxy_type   => $proxy_type,
+      proxy_server => $proxy_server,
+    }
   }
   if $pear {
-    Anchor['php::begin']
-      -> class { 'php::pear':
-        ensure => $pear_ensure,
-      }
-    -> Anchor['php::end']
+    class { 'php::pear':
+      ensure => $pear_ensure,
+    }
   }
   if $phpunit {
-    Anchor['php::begin']
-      -> class { 'php::phpunit': }
-    -> Anchor['php::end']
+    contain php::phpunit
   }
   if $apache_config {
-    Anchor['php::begin']
-      -> class { 'php::apache_config':
-        settings => $real_settings,
-      }
-    -> Anchor['php::end']
+    class { 'php::apache_config':
+      settings => $real_settings,
+    }
+    contain php::apache_config
   }
 
   create_resources('php::extension', $real_extensions, {
     require => Class['php::cli'],
-    before  => Anchor['php::end']
   })
 
   # On FreeBSD purge the system-wide extensions.ini. It is going

@@ -1,4 +1,5 @@
-# This module manages timezone settings
+#
+# @summary This module manages timezone settings
 #
 # @param timezone
 #     The name of the timezone.
@@ -38,7 +39,7 @@ class timezone (
   Enum['present','absent'] $ensure                         = 'present',
   Optional[Boolean]        $hwutc                          = undef,
   Boolean                  $autoupgrade                    = false,
-  Optional[Array[String]]  $notify_services                = undef,
+  Optional[Array[String]]  $notify_services                = [],
   Optional[String]         $package                        = undef,
   String                   $zoneinfo_dir                   = '/usr/share/zoneinfo/',
   String                   $localtime_file                 = '/etc/localtime',
@@ -55,7 +56,7 @@ class timezone (
       } else {
         $package_ensure = 'present'
       }
-      $localtime_ensure = 'file'
+      $localtime_ensure = 'link'
       $timezone_ensure = 'file'
     }
     /(absent)/: {
@@ -71,7 +72,7 @@ class timezone (
 
   if $package {
     $use_debconf = lookup('timezone::use_debconf', Boolean, 'first', false)
-    if $package_ensure == 'present' and $use_debconf {
+    if $use_debconf and $timezone_ensure != 'absent' {
       $_tz = split($timezone, '/')
       $area = $_tz[0]
       $zone = $_tz[1]
@@ -97,11 +98,20 @@ class timezone (
     }
   }
 
+  $notify = $notify_services.map |$svc| { Service[$svc] }
+
+  file { $localtime_file:
+    ensure => $localtime_ensure,
+    target => "${zoneinfo_dir}/${timezone}",
+    force  => true,
+    notify => $notify,
+  }
+
   if $timezone_file {
     file { $timezone_file:
       ensure  => $timezone_ensure,
       content => template($timezone_file_template),
-      notify  => $notify_services,
+      notify  => $notify,
     }
 
     if $ensure == 'present' and $timezone_update {
@@ -110,6 +120,7 @@ class timezone (
         subscribe   => File[$timezone_file],
         refreshonly => true,
         path        => '/usr/bin:/usr/sbin:/bin:/sbin',
+        require     => File[$localtime_file],
       }
     }
   } else {
@@ -119,6 +130,7 @@ class timezone (
         command => sprintf($timezone_update, $timezone),
         unless  => sprintf($unless_cmd, $timezone),
         path    => '/usr/bin:/usr/sbin:/bin:/sbin',
+        require => File[$localtime_file],
       }
     }
   }
@@ -142,10 +154,4 @@ class timezone (
     }
   }
 
-  file { $localtime_file:
-    ensure => $localtime_ensure,
-    source => "file://${zoneinfo_dir}/${timezone}",
-    links  => follow,
-    notify => $notify_services,
-  }
 }

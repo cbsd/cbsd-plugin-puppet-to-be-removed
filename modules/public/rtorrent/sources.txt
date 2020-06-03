@@ -1,2 +1,0 @@
-git@github.com:cbsd/puppet-cbsd.git
-

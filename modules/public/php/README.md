@@ -240,6 +240,24 @@ php::fpm::pools:
 
 ## Notes
 
+### Inheriting configuration across mutliple Hiera sources
+
+Configuration from Hiera such as `php::fpm::pools` is automatically
+lookup up using the "first" merge method. This means that the first
+value found is used. If you instead want to merge the hash keys
+across multiple Hiera sources, you can use [`lookup_options`] to
+set [`hash` or `deep` behaviors] such as in the example
+[data/default.yaml](data/default.yaml):
+
+```yaml
+lookup_options:
+  php::fpm::pools:
+    merge: hash
+```
+
+[`lookup_options`]: https://puppet.com/docs/puppet/6.4/hiera_merging.html#concept-2997
+[`hash` or `deep` behaviors]: https://puppet.com/docs/puppet/6.4/hiera_merging.html#merge-behaviors
+
 ### Debian squeeze & Ubuntu precise come with PHP 5.3
 
 On Debian-based systems, we use `php5enmod` to enable extension-specific
@@ -286,9 +304,9 @@ connect to php-fpm.
 If you plan to use the SCL repositories with this module you must do the following adjustments:
 
 #### General config
-This ensures that the module will create configurations in the directory ``/etc/opt/rh/<php_version>/` (also in php.d/ 
+This ensures that the module will create configurations in the directory ``/etc/opt/rh/<php_version>/` (also in php.d/
 for extensions). Anyway you have to manage the SCL repo's by your own.
- 
+
 ```puppet
 class { '::php::globals':
   php_version => 'rh-php71',
@@ -309,14 +327,14 @@ class { '::php':
   ...
   extensions  => {
     'soap' => {
-      ini_prefix => '20-', 
+      ini_prefix => '20-',
     },
   }
 }
 ```
 
-By this you tell the module to configure bz2 and calender while ensuring only the package `common`. Additionally to the 
-installation of 'common' the inifiles 'calender.ini' and 'bz2.ini' will be created by the scheme 
+By this you tell the module to configure bz2 and calender while ensuring only the package `common`. Additionally to the
+installation of 'common' the inifiles 'calender.ini' and 'bz2.ini' will be created by the scheme
 `<config_file_prefix><extension_title>`.
 
 A list of commonly used modules:
@@ -324,7 +342,7 @@ A list of commonly used modules:
     {
       extensions => {
         'xml' => {
-          ini_prefix => '20-', 
+          ini_prefix => '20-',
           multifile_settings => true,
           settings => {
             'dom'  => {},
@@ -336,22 +354,22 @@ A list of commonly used modules:
           },
         },
         'soap' => {
-          ini_prefix => '20-', 
+          ini_prefix => '20-',
         },
         'imap' => {
-          ini_prefix => '20-', 
+          ini_prefix => '20-',
         },
         'intl' => {
-          ini_prefix => '20-', 
+          ini_prefix => '20-',
         },
         'gd' => {
-          ini_prefix => '20-', 
-        },   
+          ini_prefix => '20-',
+        },
         'mbstring' => {
-          ini_prefix => '20-', 
+          ini_prefix => '20-',
         },
         'xmlrpc' => {
-          ini_prefix => '20-', 
+          ini_prefix => '20-',
         },
         'pdo' => {
           ini_prefix => '20-',

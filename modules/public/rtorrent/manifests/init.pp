@@ -43,11 +43,11 @@
 # Copyright 2017 Oleg Ginzburg
 #
 class rtorrent (
-  $package_name        = $::rtorrent::params::package_name,
-  $package_ensure    = $::rtorrent::params::package_ensure,
-  $service_name        = $::rtorrent::params::service_name,
-  $user            = $::rtorrent::params::user,
-  $group        = $::rtorrent::params::group,
+  $package_name   = $::rtorrent::params::package_name,
+  $package_ensure = $::rtorrent::params::package_ensure,
+  $service_name   = $::rtorrent::params::service_name,
+  $user           = $::rtorrent::params::user,
+  $group          = $::rtorrent::params::group,
 ) inherits rtorrent::params {
 
     contain '::rtorrent::setenv'

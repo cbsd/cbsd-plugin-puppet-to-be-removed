@@ -53,28 +53,22 @@
 
 
 define nginx::resource::geo (
-  $networks,
-  $default         = undef,
-  $ensure          = 'present',
-  $ranges          = false,
-  $address         = undef,
-  $delete          = undef,
-  $proxies         = undef,
-  $proxy_recursive = undef
+  Hash $networks,
+  Optional[String] $default           = undef,
+  Enum['present', 'absent'] $ensure   = 'present',
+  Boolean $ranges                     = false,
+  Optional[String] $address           = undef,
+  Optional[String] $delete            = undef,
+  Optional[Array] $proxies            = undef,
+  Optional[Boolean] $proxy_recursive  = undef
 ) {
 
-  validate_hash($networks)
-  validate_bool($ranges)
-  validate_re($ensure, '^(present|absent)$',
-    "Invalid ensure value '${ensure}'. Expected 'present' or 'absent'")
-  if ($default != undef) { validate_string($default) }
-  if ($address != undef) { validate_string($address) }
-  if ($delete != undef) { validate_string($delete) }
-  if ($proxies != undef) { validate_array($proxies) }
-  if ($proxy_recursive != undef) { validate_bool($proxy_recursive) }
+  if ! defined(Class['nginx']) {
+    fail('You must include the nginx base class before using any defined resources')
+  }
 
-  $root_group = $::nginx::root_group
-  $conf_dir   = "${::nginx::conf_dir}/conf.d"
+  $root_group = $nginx::root_group
+  $conf_dir   = "${nginx::conf_dir}/conf.d"
 
   $ensure_real = $ensure ? {
     'absent' => 'absent',
@@ -90,7 +84,7 @@ define nginx::resource::geo (
   file { "${conf_dir}/${name}-geo.conf":
     ensure  => $ensure_real,
     content => template('nginx/conf.d/geo.erb'),
-    notify  => Class['::nginx::service'],
+    notify  => Class['nginx::service'],
     require => File[$conf_dir],
   }
 }

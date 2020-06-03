@@ -3,6 +3,24 @@ https://github.com/saz/puppet-sudo
 
 Manage sudo configuration via Puppet
 
+### Supported Puppet versions
+* Puppet >= 4
+* Last version supporting Puppet 3: v4.2.0
+
+### Supported OS
+Some family and some specific os are supported by this module
+* debian osfamily (debian, ubuntu, kali, ...)
+* redhat osfamily (redhat, centos, fedora, ...)
+* suse osfamily (suse, opensuse, ...)
+* solaris osfamily (Solaris, OmniOS, SmartOS, ...)
+* freebsd osfamily
+* openbsd osfamily
+* aix osfamily
+* darwin osfamily
+* gentoo operating system
+* archlinux operating system
+* amazon operating system
+
 ### Gittip
 [![Support via Gittip](https://rawgithub.com/twolfson/gittip-badge/0.2.0/dist/gittip.png)](https://www.gittip.com/saz/)
 
@@ -35,6 +53,18 @@ If this is not what you're expecting, set `purge` and/or `config_file_replace` t
     }
 ```
 
+#### Use LDAP along with sudo
+
+Sudo do not always include by default the support for LDAP.
+On Debian and Ubuntu a special package sudo-ldap will be used.
+On Gentoo there is also the needing to include [puppet portage module by Gentoo](https://forge.puppetlabs.com/gentoo/portage). If not present, only a notification will be shown.
+
+```puppet
+    class { 'sudo':
+      ldap_enable         => true,
+    }
+```
+
 ### Adding sudoers configuration
 
 #### Using Code
@@ -46,7 +76,7 @@ If this is not what you're expecting, set `purge` and/or `config_file_replace` t
     }
     sudo::conf { 'admins':
       priority => 10,
-      content  => "%admins ALL=(ALL) NOPASSWD: ALL",
+      content  => '%admins ALL=(ALL) NOPASSWD: ALL',
     }
     sudo::conf { 'joe':
       priority => 60,
@@ -72,23 +102,10 @@ Examples using:
 
 ##### Load module
 
-###### Using Puppet version 3+
-
 Load the module via Puppet Code or your ENC.
 
 ```puppet
     include sudo
-```
-
-###### Using Puppet version 2.7+
-
-After [Installing Hiera](http://docs.puppetlabs.com/hiera/1/installing.html):
-
-- Load the `sudo` and `sudo::configs` modules via Puppet Code or your ENC.
-
-```puppet
-    include sudo
-    include sudo::configs
 ```
 
 ##### Configure Hiera YAML __(defaults.yaml)__
@@ -100,7 +117,7 @@ sudo::configs:
     'web':
         'source'    : 'puppet:///files/etc/sudoers.d/web'
     'admins':
-        'content'   : "%admins ALL=(ALL) NOPASSWD: ALL"
+        'content'   : '%admins ALL=(ALL) NOPASSWD: ALL'
         'priority'  : 10
     'joe':
         'priority'  : 60
@@ -114,8 +131,15 @@ In this example we are:
 - inheriting/preserving the __web__ configuration
 - overriding the __admins__ configuration
 - removing the __joe__ configuration
+- adding the __bill__ template
 
 ```yaml
+lookup_options:
+  sudo::configs:
+    merge:
+      strategy: deep
+      merge_hash_arrays: true
+
 sudo::configs:
     'admins':
         'content'   : "%prodadmins ALL=(ALL) NOPASSWD: ALL"
@@ -123,9 +147,9 @@ sudo::configs:
     'joe':
         'ensure'    : 'absent'
         'source'    : 'puppet:///files/etc/sudoers.d/users/joe'
+    'bill':
+        'template'  : "mymodule/bill.erb"
 ```
-
-If you have Hiera version >= 1.2.0 and enable [Hiera Deeper Merging](http://docs.puppetlabs.com/hiera/1/lookup_types.html#deep-merging-in-hiera--120) you may conditionally override any setting.
 
 In this example we are:
 - inheriting/preserving the __web__ configuration
@@ -133,13 +157,22 @@ In this example we are:
 - inheriting/preserving the __admins:priority__ setting
 - inheriting/preserving the __joe:source__ and __joe:priority__ settings
 - removing the __joe__ configuration
+- adding the __bill__ template
 
 ```yaml
+lookup_options:
+  sudo::configs:
+    merge:
+      strategy: deep
+      merge_hash_arrays: true
+
 sudo::configs:
     'admins':
         'content'   : "%prodadmins ALL=(ALL) NOPASSWD: ALL"
     'joe':
         'ensure'    : 'absent'
+    'bill':
+        'template'  : "mymodule/bill.erb"
 ```
 
 ##### Set a custom name for the sudoers file
@@ -148,15 +181,16 @@ In some edge cases, the automatically generated sudoers file name is insufficien
 
 ```puppet
 sudo::conf { "foreman-proxy":
-    ensure          => "present",
-    source          => "puppet:///modules/sudo/foreman-proxy",
-    sudo_file_name  => "foreman-proxy",
+	ensure          => "present",
+	source          => "puppet:///modules/sudo/foreman-proxy",
+	sudo_file_name  => "foreman-proxy",
 }
 ```
 
 ### sudo::conf / sudo::configs notes
-* You can pass template() through content parameter.
 * One of content or source must be set.
+* Content may be an array, string will be added with return carriage after each element.
+* In order to properly pass a template() use template instead of content, as hiera would run template function otherwise.
 
 ## sudo class parameters
 
@@ -170,8 +204,11 @@ sudo::conf { "foreman-proxy":
 | purge_ignore        | string  | undef       | Files excluded from purging in config_dir |
 | config_file         | string  | OS specific | Set config_file _(for unsupported platforms)_ |
 | config_file_replace | boolean | true        | Replace config file with module config file |
+| includedirsudoers   | boolean | OS specific | Add #includedir /etc/sudoers.d with augeas |
 | config_dir          | string  | OS specific | Set config_dir _(for unsupported platforms)_ |
-| source              | string  | OS specific | Set source _(for unsupported platforms)_ |
+| content             | string  | OS specific | Alternate content file location |
+| ldap_enable         | boolean | false       | Add support to LDAP |
+| configs             | hash    | {}          | A hash of sudo::conf's |
 
 ## sudo::conf class / sudo::configs hash parameters
 
@@ -181,5 +218,6 @@ sudo::conf { "foreman-proxy":
 | priority        | number | 10          | file name prefix |
 | content         | string | undef       | content of configuration snippet |
 | source          | string | undef       | source of configuration snippet |
+| template        | string | undef       | template of configuration snippet |
 | sudo_config_dir | string | OS Specific | configuration snippet directory _(for unsupported platforms)_ |
-| sudo_file_name  | string | undef         | custom file name for sudo file in sudoers directory |
+| sudo_file_name  | string | undef		 | custom file name for sudo file in sudoers directory |
