@@ -3,6 +3,7 @@ Puppet::Type.type(:firewall).provide :ip6tables, parent: :iptables, source: :ip6
 
   has_feature :iptables
   has_feature :connection_limiting
+  has_feature :conntrack
   has_feature :hop_limiting
   has_feature :rate_limiting
   has_feature :recent_limiting
@@ -16,6 +17,9 @@ Puppet::Type.type(:firewall).provide :ip6tables, parent: :iptables, source: :ip6
   has_feature :log_level
   has_feature :log_prefix
   has_feature :log_uid
+  has_feature :log_tcp_sequence
+  has_feature :log_tcp_options
+  has_feature :log_ip_options
   has_feature :mark
   has_feature :mss
   has_feature :tcp_flags
@@ -34,6 +38,8 @@ Puppet::Type.type(:firewall).provide :ip6tables, parent: :iptables, source: :ip6
   has_feature :string_matching
   has_feature :queue_num
   has_feature :queue_bypass
+  has_feature :ct_target
+  has_feature :rpfilter
 
   optional_commands(ip6tables: 'ip6tables',
                     ip6tables_save: 'ip6tables-save')
@@ -46,6 +52,12 @@ Puppet::Type.type(:firewall).provide :ip6tables, parent: :iptables, source: :ip6
               else
                 '--set-xmark'
               end
+
+  kernelversion = Facter.value('kernelversion')
+  if (kernelversion && Puppet::Util::Package.versioncmp(kernelversion, '3.13') >= 0) &&
+     (ip6tables_version && Puppet::Util::Package.versioncmp(ip6tables_version, '1.6.2') >= 0)
+    has_feature :random_fully
+  end
 
   def initialize(*args)
     ip6tables_version = Facter.value('ip6tables_version')
@@ -70,13 +82,26 @@ Puppet::Type.type(:firewall).provide :ip6tables, parent: :iptables, source: :ip6
     connlimit_above: '-m connlimit --connlimit-above',
     connlimit_mask: '--connlimit-mask',
     connmark: '-m connmark --mark',
-    ctstate: '-m conntrack --ctstate',
+    ctstate: '--ctstate',
+    ctproto: '--ctproto',
+    ctorigsrc: '--ctorigsrc',
+    ctorigdst: '--ctorigdst',
+    ctreplsrc: '--ctreplsrc',
+    ctrepldst: '--ctrepldst',
+    ctorigsrcport: '--ctorigsrcport',
+    ctorigdstport: '--ctorigdstport',
+    ctreplsrcport: '--ctreplsrcport',
+    ctrepldstport: '--ctrepldstport',
+    ctstatus: '--ctstatus',
+    ctexpire: '--ctexpire',
+    ctdir: '--ctdir',
     destination: '-d',
     dport: ['-m multiport --dports', '--dport'],
     dst_range: '--dst-range',
     dst_type: '--dst-type',
     gateway: '--gateway',
     gid: '--gid-owner',
+    goto: '-g',
     hop_limit: '-m hl --hl-eq',
     icmp: '-m icmp6 --icmpv6-type',
     iniface: '-i',
@@ -92,6 +117,9 @@ Puppet::Type.type(:firewall).provide :ip6tables, parent: :iptables, source: :ip6
     log_level: '--log-level',
     log_prefix: '--log-prefix',
     log_uid: '--log-uid',
+    log_tcp_sequence: '--log-tcp-sequence',
+    log_tcp_options: '--log-tcp-options',
+    log_ip_options: '--log-ip-options',
     mask: '--mask',
     match_mark: '-m mark --mark',
     name: '-m comment --comment',
@@ -109,6 +137,7 @@ Puppet::Type.type(:firewall).provide :ip6tables, parent: :iptables, source: :ip6
     reject: '--reject-with',
     rhitcount: '--hitcount',
     rname: '--name',
+    rpfilter: '-m rpfilter',
     rseconds: '--seconds',
     rsource: '--rsource',
     rttl: '--rttl',
@@ -162,7 +191,9 @@ Puppet::Type.type(:firewall).provide :ip6tables, parent: :iptables, source: :ip6
     hashlimit_htable_max: '--hashlimit-htable-max',
     hashlimit_htable_expire: '--hashlimit-htable-expire',
     hashlimit_htable_gcinterval: '--hashlimit-htable-gcinterval',
-
+    bytecode: '-m bpf --bytecode',
+    zone: '--zone',
+    helper: '--helper',
   }
 
   # These are known booleans that do not take a value, but we want to munge
@@ -174,9 +205,13 @@ Puppet::Type.type(:firewall).provide :ip6tables, parent: :iptables, source: :ip6
     :islastfrag,
     :isfirstfrag,
     :log_uid,
+    :log_tcp_sequence,
+    :log_tcp_options,
+    :log_ip_options,
     :rsource,
     :rdest,
     :reap,
+    :rpfilter,
     :rttl,
     :socket,
     :physdev_is_bridged,
@@ -204,6 +239,8 @@ Puppet::Type.type(:firewall).provide :ip6tables, parent: :iptables, source: :ip6
     addrtype: [:src_type, :dst_type],
     iprange: [:src_range, :dst_range],
     owner: [:uid, :gid],
+    conntrack: [:ctstate, :ctproto, :ctorigsrc, :ctorigdst, :ctreplsrc, :ctrepldst,
+                :ctorigsrcport, :ctorigdstport, :ctreplsrcport, :ctrepldstport, :ctstatus, :ctexpire, :ctdir],
     time: [:time_start, :time_stop, :month_days, :week_days, :date_start, :date_stop, :time_contiguous, :kernel_timezone],
     geoip: [:src_cc, :dst_cc],
     hashlimit: [:hashlimit_upto, :hashlimit_above, :hashlimit_name, :hashlimit_burst, :hashlimit_mode, :hashlimit_srcmask, :hashlimit_dstmask,
@@ -250,12 +287,15 @@ Puppet::Type.type(:firewall).provide :ip6tables, parent: :iptables, source: :ip6
                     :proto, :ishasmorefrags, :islastfrag, :isfirstfrag, :src_range, :dst_range,
                     :tcp_flags, :uid, :gid, :mac_source, :sport, :dport, :port, :src_type,
                     :dst_type, :socket, :pkttype, :ipsec_dir, :ipsec_policy, :state,
-                    :ctstate, :icmp, :hop_limit, :limit, :burst, :length, :recent, :rseconds, :reap,
+                    :ctstate, :ctproto, :ctorigsrc, :ctorigdst, :ctreplsrc, :ctrepldst,
+                    :ctorigsrcport, :ctorigdstport, :ctreplsrcport, :ctrepldstport, :ctstatus, :ctexpire, :ctdir,
+                    :icmp, :hop_limit, :limit, :burst, :length, :recent, :rseconds, :reap,
                     :rhitcount, :rttl, :rname, :mask, :rsource, :rdest, :ipset, :string, :string_algo,
                     :string_from, :string_to, :jump, :clamp_mss_to_pmtu, :gateway, :todest,
-                    :tosource, :toports, :checksum_fill, :log_level, :log_prefix, :log_uid, :reject, :set_mss, :set_dscp, :set_dscp_class, :mss, :queue_num, :queue_bypass,
+                    :tosource, :toports, :checksum_fill, :log_level, :log_prefix, :log_uid, :log_tcp_sequence, :log_tcp_options, :log_ip_options,
+                    :reject, :set_mss, :set_dscp, :set_dscp_class, :mss, :queue_num, :queue_bypass,
                     :set_mark, :match_mark, :connlimit_above, :connlimit_mask, :connmark, :time_start, :time_stop, :month_days, :week_days, :date_start, :date_stop, :time_contiguous, :kernel_timezone,
                     :src_cc, :dst_cc, :hashlimit_upto, :hashlimit_above, :hashlimit_name, :hashlimit_burst,
                     :hashlimit_mode, :hashlimit_srcmask, :hashlimit_dstmask, :hashlimit_htable_size,
-                    :hashlimit_htable_max, :hashlimit_htable_expire, :hashlimit_htable_gcinterval, :name]
+                    :hashlimit_htable_max, :hashlimit_htable_expire, :hashlimit_htable_gcinterval, :bytecode, :zone, :helper, :rpfilter, :name]
 end

@@ -1,5 +1,27 @@
 # Changelog
 
+## 2.5.0
+
+- Add support for:
+  - Debian 10
+  - EL 8
+
+## 2.4.0
+
+- Add Archlinux support (GH #38)
+- Use : as separator on FreeBSD (fix #24) (GH #30)
+- Do not manage comment when persist is false (fix #29) (GH #31)
+
+## 2.3.1
+
+- Fix puppet requirement to < 7.0.0
+
+## 2.3.0
+
+- Add support for Puppet 6
+- Deprecate support for Puppet < 5
+- Update supported OSes in metadata.json
+
 ## 2.2.1
 - Added support for Puppet 5 and OEL
 
