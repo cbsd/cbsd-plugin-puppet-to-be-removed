@@ -1,21 +1,21 @@
-# Define for granting membership to a role. See README.md for more information
+# @summary Define for granting membership to a role.
+#
+# @param group Specifies the group role to which you are assigning a role.
+# @param role Specifies the role you want to assign to a group. If left blank, uses the name of the resource.
+# @param ensure Specifies whether to grant or revoke the membership. Valid options: 'present' or 'absent'.
+# @param psql_db Specifies the database to execute the grant against. This should not ordinarily be changed from the default
+# @param psql_user Sets the OS user to run psql.
+# @param port Port to use when connecting.
+# @param connect_settings Specifies a hash of environment variables used when connecting to a remote server.
 define postgresql::server::grant_role (
-  $group,
-  $role,
-  $ensure           = 'present',
-  $psql_db          = $postgresql::server::default_database,
-  $psql_user        = $postgresql::server::user,
-  $port             = $postgresql::server::port,
-  $connect_settings = $postgresql::server::default_connect_settings,
+  String[1] $group,
+  String[1] $role                   = $name,
+  Enum['present', 'absent'] $ensure = 'present',
+  $psql_db                          = $postgresql::server::default_database,
+  $psql_user                        = $postgresql::server::user,
+  $port                             = $postgresql::server::port,
+  $connect_settings                 = $postgresql::server::default_connect_settings,
 ) {
-  validate_string($group)
-  validate_string($role)
-  if empty($group) {
-    fail('$group must be set')
-  }
-  if empty($role) {
-    fail('$role must be set')
-  }
   case $ensure {
     'present': {
       $command = "GRANT \"${group}\" TO \"${role}\""

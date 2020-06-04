@@ -1,18 +1,69 @@
-# Define for granting permissions to roles. See README.md for more details.
+# @summary Define for granting permissions to roles.
+#
+# @param role Specifies the role or user whom you are granting access to.
+# @param db Specifies the database to which you are granting access.
+# @param privilege Specifies the privilege to grant. Valid options: 'ALL', 'ALL PRIVILEGES' or 'object_type' dependent string.
+# @param object_type Specifies the type of object to which you are granting privileges. Valid options: 'DATABASE', 'SCHEMA', 'SEQUENCE', 'ALL SEQUENCES IN SCHEMA', 'TABLE' or 'ALL TABLES IN SCHEMA'.
+# @param object_name Specifies name of object_type to which to grant access, can be either a string or a two element array. String: 'object_name' Array: ['schema_name', 'object_name']
+# @param psql_db Specifies the database to execute the grant against. This should not ordinarily be changed from the default
+# @param psql_user Sets the OS user to run psql.
+# @param port Port to use when connecting.
+# @param onlyif_exists Create grant only if doesn't exist
+# @param connect_settings Specifies a hash of environment variables used when connecting to a remote server.
+# @param ensure Specifies whether to grant or revoke the privilege. Default is to grant the privilege. Valid values: 'present', 'absent'.
+# @param group Sets the OS group to run psql
+# @param psql_path Sets the path to psql command
 define postgresql::server::grant (
-  $role,
-  $db,
-  $privilege        = undef,
-  $object_type      = 'database',
-  $object_name      = undef,
-  $psql_db          = $postgresql::server::default_database,
-  $psql_user        = $postgresql::server::user,
-  $port             = $postgresql::server::port,
-  $onlyif_exists    = false,
-  $connect_settings = $postgresql::server::default_connect_settings,
+  String $role,
+  String $db,
+  String $privilege      = '',
+  Pattern[#/(?i:^COLUMN$)/,
+    /(?i:^ALL SEQUENCES IN SCHEMA$)/,
+    /(?i:^ALL TABLES IN SCHEMA$)/,
+    /(?i:^DATABASE$)/,
+    #/(?i:^FOREIGN DATA WRAPPER$)/,
+    #/(?i:^FOREIGN SERVER$)/,
+    /(?i:^FUNCTION$)/,
+    /(?i:^LANGUAGE$)/,
+    #/(?i:^PROCEDURAL LANGUAGE$)/,
+    /(?i:^TABLE$)/,
+    #/(?i:^TABLESPACE$)/,
+    /(?i:^SCHEMA$)/,
+    /(?i:^SEQUENCE$)/
+    #/(?i:^VIEW$)/
+  ] $object_type                   = 'database',
+  Optional[Variant[
+            Array[String,2,2],
+            String[1]]
+  ] $object_name                   = undef,
+  Array[String[1],0]
+    $object_arguments              = [],
+  String $psql_db                  = $postgresql::server::default_database,
+  String $psql_user                = $postgresql::server::user,
+  Integer $port                    = $postgresql::server::port,
+  Boolean $onlyif_exists           = false,
+  Hash $connect_settings           = $postgresql::server::default_connect_settings,
+  Enum['present',
+        'absent'
+  ] $ensure                        = 'present',
+  String $group                    = $postgresql::server::group,
+  String $psql_path                = $postgresql::server::psql_path,
 ) {
-  $group     = $postgresql::server::group
-  $psql_path = $postgresql::server::psql_path
+
+  case $ensure {
+    default: {
+      # default is 'present'
+      $sql_command = 'GRANT %s ON %s "%s%s" TO "%s"'
+      $sql_command_unquoted = 'GRANT %s ON %s %s%s TO "%s"'
+      $unless_is = true
+    }
+    'absent': {
+      $sql_command = 'REVOKE %s ON %s "%s%s" FROM "%s"'
+      $sql_command_unquoted = 'REVOKE %s ON %s %s%s FROM "%s"'
+      $unless_is = false
+    }
+  }
+
 
   if ! $object_name {
     $_object_name = $db
@@ -20,7 +71,6 @@ define postgresql::server::grant (
     $_object_name = $object_name
   }
 
-  validate_bool($onlyif_exists)
   #
   # Port, order of precedence: $port parameter, $connect_settings[PGPORT], $postgresql::server::port
   #
@@ -36,23 +86,6 @@ define postgresql::server::grant (
   $_object_type = upcase($object_type)
   $_privilege   = upcase($privilege)
 
-  ## Validate that the object type is known
-  validate_re($_object_type,[
-    #'^COLUMN$',
-    '^DATABASE$',
-    #'^FOREIGN SERVER$',
-    #'^FOREIGN DATA WRAPPER$',
-    #'^FUNCTION$',
-    #'^PROCEDURAL LANGUAGE$',
-    '^SCHEMA$',
-    '^SEQUENCE$',
-    '^ALL SEQUENCES IN SCHEMA$',
-    '^TABLE$',
-    '^ALL TABLES IN SCHEMA$',
-    #'^TABLESPACE$',
-    #'^VIEW$',
-    ]
-  )
   # You can use ALL TABLES IN SCHEMA by passing schema_name to object_name
   # You can use ALL SEQUENCES IN SCHEMA by passing schema_name to object_name
 
@@ -70,40 +103,76 @@ define postgresql::server::grant (
       $unless_privilege = $_privilege ? {
         'ALL'            => 'CREATE',
         'ALL PRIVILEGES' => 'CREATE',
-        default          => $_privilege,
+        Pattern[
+          /^$/,
+          /^CONNECT$/,
+          /^CREATE$/,
+          /^TEMP$/,
+          /^TEMPORARY$/
+        ]                => $_privilege,
+        default          => fail('Illegal value for $privilege parameter'),
       }
-      validate_re($unless_privilege, [ '^$', '^CREATE$','^CONNECT$','^TEMPORARY$','^TEMP$',
-        '^ALL$','^ALL PRIVILEGES$' ])
       $unless_function = 'has_database_privilege'
       $on_db = $psql_db
-      $onlyif_function = undef
+      $onlyif_function = $ensure ? {
+        default  => undef,
+        'absent' =>  'role_exists',
+      }
+      $arguments = ''
+      $_enquote_object = true
     }
     'SCHEMA': {
       $unless_privilege = $_privilege ? {
         'ALL'            => 'CREATE',
         'ALL PRIVILEGES' => 'CREATE',
-        default          => $_privilege,
+        Pattern[
+          /^$/,
+          /^CREATE$/,
+          /^USAGE$/
+        ]                => $_privilege,
+        default          => fail('Illegal value for $privilege parameter'),
       }
-      validate_re($_privilege, [ '^$', '^CREATE$', '^USAGE$', '^ALL$', '^ALL PRIVILEGES$' ])
       $unless_function = 'has_schema_privilege'
       $on_db = $db
       $onlyif_function = undef
+      $arguments = ''
+      $_enquote_object = true
     }
     'SEQUENCE': {
       $unless_privilege = $_privilege ? {
         'ALL'   => 'USAGE',
-        default => $_privilege,
+        Pattern[
+          /^$/,
+          /^ALL PRIVILEGES$/,
+          /^SELECT$/,
+          /^UPDATE$/,
+          /^USAGE$/
+        ]       => $_privilege,
+        default => fail('Illegal value for $privilege parameter'),
       }
-      validate_re($unless_privilege, [ '^$', '^USAGE$', '^SELECT$', '^UPDATE$', '^ALL$', '^ALL PRIVILEGES$' ])
       $unless_function = 'has_sequence_privilege'
       $on_db = $db
       $onlyif_function = undef
+      $arguments = ''
+      $_enquote_object = true
     }
     'ALL SEQUENCES IN SCHEMA': {
-      validate_re($_privilege, [ '^$', '^USAGE$', '^SELECT$', '^UPDATE$', '^ALL$', '^ALL PRIVILEGES$' ])
+      case $_privilege {
+        Pattern[
+          /^$/,
+          /^ALL$/,
+          /^ALL PRIVILEGES$/,
+          /^SELECT$/,
+          /^UPDATE$/,
+          /^USAGE$/
+        ]:       { }
+        default: { fail('Illegal value for $privilege parameter') }
+      }
       $unless_function = 'custom'
       $on_db = $db
       $onlyif_function = undef
+      $arguments = ''
+      $_enquote_object = true
 
       $schema = $object_name
 
@@ -124,100 +193,221 @@ define postgresql::server::grant (
       # If this number is not zero then there is at least one sequence for which
       # the role does not have the specified privilege, making it necessary to
       # execute the GRANT statement.
-      $custom_unless = "SELECT 1 FROM (
-        SELECT sequence_name
-        FROM information_schema.sequences
-        WHERE sequence_schema='${schema}'
-          EXCEPT DISTINCT
-        SELECT object_name as sequence_name
-        FROM (
-          SELECT object_schema,
-                 object_name,
-                 grantee,
-                 CASE privs_split
-                   WHEN 'r' THEN 'SELECT'
-                   WHEN 'w' THEN 'UPDATE'
-                   WHEN 'U' THEN 'USAGE'
-                 END AS privilege_type
-            FROM (
-              SELECT DISTINCT
-                     object_schema,
-                     object_name,
-                     (regexp_split_to_array(regexp_replace(privs,E'/.*',''),'='))[1] AS grantee,
-                     regexp_split_to_table((regexp_split_to_array(regexp_replace(privs,E'/.*',''),'='))[2],E'\\s*') AS privs_split
-                FROM (
-                 SELECT n.nspname as object_schema,
-                         c.relname as object_name,
-                         regexp_split_to_table(array_to_string(c.relacl,','),',') AS privs
-                    FROM pg_catalog.pg_class c
-                         LEFT JOIN pg_catalog.pg_namespace n ON c.relnamespace = n.oid
-                   WHERE c.relkind = 'S'
-                         AND n.nspname NOT IN ( 'pg_catalog', 'information_schema' )
-                ) P1
-            ) P2
-        ) P3
-        WHERE grantee='${role}'
-        AND object_schema='${schema}'
-        AND privilege_type='${custom_privilege}'
-        ) P
-        HAVING count(P.sequence_name) = 0"
+      if $ensure == 'present' {
+        $custom_unless = "SELECT 1 WHERE NOT EXISTS (
+          SELECT sequence_name
+          FROM information_schema.sequences
+          WHERE sequence_schema='${schema}'
+            EXCEPT DISTINCT
+          SELECT object_name as sequence_name
+          FROM (
+            SELECT object_schema,
+                   object_name,
+                   grantee,
+                   CASE privs_split
+                     WHEN 'r' THEN 'SELECT'
+                     WHEN 'w' THEN 'UPDATE'
+                     WHEN 'U' THEN 'USAGE'
+                   END AS privilege_type
+              FROM (
+                SELECT DISTINCT
+                       object_schema,
+                       object_name,
+                       regexp_replace((regexp_split_to_array(regexp_replace(privs,E'/.*',''),'='))[1],'\"','','g') AS grantee,
+                       regexp_split_to_table((regexp_split_to_array(regexp_replace(privs,E'/.*',''),'='))[2],E'\\s*') AS privs_split
+                  FROM (
+                   SELECT n.nspname as object_schema,
+                           c.relname as object_name,
+                           regexp_split_to_table(array_to_string(c.relacl,','),',') AS privs
+                      FROM pg_catalog.pg_class c
+                           LEFT JOIN pg_catalog.pg_namespace n ON c.relnamespace = n.oid
+                     WHERE c.relkind = 'S'
+                           AND n.nspname NOT IN ( 'pg_catalog', 'information_schema' )
+                  ) P1
+              ) P2
+          ) P3
+          WHERE grantee='${role}'
+          AND object_schema='${schema}'
+          AND privilege_type='${custom_privilege}'
+          )"
+      } else {
+        # ensure == absent
+        $custom_unless = "SELECT 1 WHERE NOT EXISTS (
+          SELECT object_name as sequence_name
+          FROM (
+            SELECT object_schema,
+                   object_name,
+                   grantee,
+                   CASE privs_split
+                     WHEN 'r' THEN 'SELECT'
+                     WHEN 'w' THEN 'UPDATE'
+                     WHEN 'U' THEN 'USAGE'
+                   END AS privilege_type
+              FROM (
+                SELECT DISTINCT
+                       object_schema,
+                       object_name,
+                       regexp_replace((regexp_split_to_array(regexp_replace(privs,E'/.*',''),'='))[1],'\"','','g') AS grantee,
+                       regexp_split_to_table((regexp_split_to_array(regexp_replace(privs,E'/.*',''),'='))[2],E'\\s*') AS privs_split
+                  FROM (
+                   SELECT n.nspname as object_schema,
+                           c.relname as object_name,
+                           regexp_split_to_table(array_to_string(c.relacl,','),',') AS privs
+                      FROM pg_catalog.pg_class c
+                           LEFT JOIN pg_catalog.pg_namespace n ON c.relnamespace = n.oid
+                     WHERE c.relkind = 'S'
+                           AND n.nspname NOT IN ( 'pg_catalog', 'information_schema' )
+                  ) P1
+              ) P2
+          ) P3
+          WHERE grantee='${role}'
+          AND object_schema='${schema}'
+          AND privilege_type='${custom_privilege}'
+          )"
+      }
     }
     'TABLE': {
       $unless_privilege = $_privilege ? {
         'ALL'   => 'INSERT',
-        default => $_privilege,
+        Pattern[
+          /^$/,
+          /^ALL$/,
+          /^ALL PRIVILEGES$/,
+          /^DELETE$/,
+          /^INSERT$/,
+          /^REFERENCES$/,
+          /^SELECT$/,
+          /^TRIGGER$/,
+          /^TRUNCATE$/,
+          /^UPDATE$/
+        ]       => $_privilege,
+        default => fail('Illegal value for $privilege parameter'),
       }
-      validate_re($unless_privilege,[ '^$', '^SELECT$','^INSERT$','^UPDATE$','^DELETE$',
-        '^TRUNCATE$','^REFERENCES$','^TRIGGER$','^ALL$','^ALL PRIVILEGES$' ])
       $unless_function = 'has_table_privilege'
       $on_db = $db
       $onlyif_function = $onlyif_exists ? {
         true    => 'table_exists',
         default => undef,
       }
+      $arguments = ''
+      $_enquote_object = true
     }
     'ALL TABLES IN SCHEMA': {
-      validate_re($_privilege, [ '^$', '^SELECT$','^INSERT$','^UPDATE$','^DELETE$',
-        '^TRUNCATE$','^REFERENCES$','^TRIGGER$','^ALL$','^ALL PRIVILEGES$' ])
+      case $_privilege {
+        Pattern[
+          /^$/,
+          /^ALL$/,
+          /^ALL PRIVILEGES$/,
+          /^DELETE$/,
+          /^INSERT$/,
+          /^REFERENCES$/,
+          /^SELECT$/,
+          /^TRIGGER$/,
+          /^TRUNCATE$/,
+          /^UPDATE$/
+        ]:       { }
+        default: { fail('Illegal value for $privilege parameter') }
+      }
       $unless_function = 'custom'
       $on_db = $db
       $onlyif_function = undef
+      $arguments = ''
+      $_enquote_object = true
 
       $schema = $object_name
 
       # Again there seems to be no easy way in plain SQL to check if ALL
-      # PRIVILEGES are granted on a table. By convention we use INSERT
-      # here to represent ALL PRIVILEGES (truly terrible).
-      $custom_privilege = $_privilege ? {
-        'ALL'            => 'INSERT',
-        'ALL PRIVILEGES' => 'INSERT',
-        default          => $_privilege,
+      # PRIVILEGES are granted on a table.
+      # There are currently 7 possible priviliges:
+      # ('SELECT','UPDATE','INSERT','DELETE','TRIGGER','REFERENCES','TRUNCATE')
+      # This list is consistant from Postgresql 8.0
+      #
+      # There are 4 cases to cover, each with it's own distinct unless clause:
+      #    grant ALL
+      #    grant SELECT (or INSERT or DELETE ...)
+      #    revoke ALL
+      #    revoke SELECT (or INSERT or DELETE ...)
+
+      if $ensure == 'present' {
+        if $_privilege == 'ALL' or $_privilege == 'ALL PRIVILEGES' {
+          # GRANT ALL
+          $custom_unless = "SELECT 1 WHERE NOT EXISTS
+             ( SELECT 1 FROM
+               ( SELECT t.tablename,count(privilege_type) AS priv_count FROM pg_catalog.pg_tables AS t
+                 LEFT JOIN information_schema.role_table_grants AS g ON t.tablename = g.table_name AND g.grantee = '${role}' AND g.table_schema = '${schema}'
+                 WHERE t.schemaname = '${schema}' AND
+                 ( g.grantee = '${role}' AND privilege_type IN ('SELECT','UPDATE','INSERT','DELETE','TRIGGER','REFERENCES','TRUNCATE') OR privilege_type IS NULL )
+                 GROUP BY t.tablename
+               ) AS j WHERE j.priv_count < 7
+             )"
+
+        } else {
+          # GRANT $_privilege
+          $custom_unless = "SELECT 1 WHERE NOT EXISTS
+             ( SELECT 1 FROM pg_catalog.pg_tables AS t
+               LEFT JOIN information_schema.role_table_grants AS g ON t.tablename = g.table_name AND g.grantee = '${role}' AND g.table_schema = '${schema}' AND g.privilege_type = '${_privilege}'
+               WHERE t.schemaname = '${schema}' AND g.table_name IS NULL
+             )"
+        }
+      } else {
+        if $_privilege == 'ALL' or $_privilege == 'ALL PRIVILEGES' {
+          # REVOKE ALL
+          $custom_unless = "SELECT 1 WHERE NOT EXISTS
+             ( SELECT table_name FROM information_schema.role_table_grants
+               WHERE grantee = '${role}' AND table_schema ='${schema}'
+             )"
+        } else {
+          # REVOKE $_privilege
+          $custom_unless = "SELECT 1 WHERE NOT EXISTS
+             ( SELECT table_name FROM information_schema.role_table_grants
+               WHERE grantee = '${role}' AND table_schema ='${schema}'
+               AND privilege_type = '${_privilege}'
+             )"
+        }
       }
 
-      # This checks if there is a difference between the tables in the
-      # specified schema and the tables for which the role has the specified
-      # privilege. It uses the EXCEPT clause which computes the set of rows
-      # that are in the result of the first SELECT statement but not in the
-      # result of the second one. It then counts the number of rows from this
-      # operation. If this number is zero then the role has the specified
-      # privilege for all tables in the schema and the whole query returns a
-      # single row, which satisfies the `unless` parameter of Postgresql_psql.
-      # If this number is not zero then there is at least one table for which
-      # the role does not have the specified privilege, making it necessary to
-      # execute the GRANT statement.
-      $custom_unless = "SELECT 1 FROM (
-        SELECT table_name
-        FROM information_schema.tables
-        WHERE table_schema='${schema}'
-          EXCEPT DISTINCT
-        SELECT table_name
-        FROM information_schema.role_table_grants
-        WHERE grantee='${role}'
-        AND table_schema='${schema}'
-        AND privilege_type='${custom_privilege}'
-        ) P
-        HAVING count(P.table_name) = 0"
     }
+    'LANGUAGE': {
+      $unless_privilege = $_privilege ? {
+        'ALL'            => 'USAGE',
+        'ALL PRIVILEGES' => 'USAGE',
+        Pattern[
+          /^$/,
+          /^CREATE$/,
+          /^USAGE$/
+        ]                => $_privilege,
+        default          => fail('Illegal value for $privilege parameter'),
+      }
+      $unless_function = 'has_language_privilege'
+      $on_db = $db
+      $onlyif_function = $onlyif_exists ? {
+        true    => 'language_exists',
+        default => undef,
+      }
+      $arguments = ''
+      $_enquote_object = false
+    }
+    'FUNCTION': {
+      $unless_privilege = $_privilege ? {
+        'ALL'            => 'EXECUTE',
+        'ALL PRIVILEGES' => 'EXECUTE',
+        Pattern[
+          /^$/,
+          /^EXECUTE$/,
+        ]                => $_privilege,
+        default          => fail('Illegal value for $privilege parameter'),
+      }
+      $unless_function = 'has_function_privilege'
+      $on_db = $db
+      $onlyif_function = $onlyif_exists ? {
+        true    => 'function_exists',
+        default => undef,
+      }
+      $_joined_args = join($object_arguments, ',')
+      $arguments = "(${_joined_args})"
+      $_enquote_object = false
+    }
+
     default: {
       fail("Missing privilege validation for object type ${_object_type}")
     }
@@ -231,29 +421,46 @@ define postgresql::server::grant (
   #   object_type => 'TABLE',
   #   object_name => [$schema, $table],
   # }
-  if is_array($_object_name) {
-    $_togrant_object = join($_object_name, '"."')
-    # Never put double quotes into has_*_privilege function
-    $_granted_object = join($_object_name, '.')
-  } else {
-    $_granted_object = $_object_name
-    $_togrant_object = $_object_name
+  case $_object_name {
+    Array:   {
+      $_togrant_object = $_enquote_object ? {
+        false   => join($_object_name, '.'),
+        default => join($_object_name, '"."'),
+      }
+      # Never put double quotes into has_*_privilege function
+      $_granted_object = join($_object_name, '.')
+    }
+    default: {
+      $_granted_object = $_object_name
+      $_togrant_object = $_object_name
+    }
   }
+
+  # Function like has_database_privilege() refer the PUBLIC pseudo role as 'public'
+  # So we need to replace 'PUBLIC' by 'public'.
 
   $_unless = $unless_function ? {
       false    => undef,
       'custom' => $custom_unless,
-      default  => "SELECT 1 WHERE ${unless_function}('${role}',
-                  '${_granted_object}', '${unless_privilege}')",
+      default  => $role ? {
+        'PUBLIC' => "SELECT 1 WHERE ${unless_function}('public', '${_granted_object}${arguments}', '${unless_privilege}') = ${unless_is}",
+        default  => "SELECT 1 WHERE ${unless_function}('${role}', '${_granted_object}${arguments}', '${unless_privilege}') = ${unless_is}",
+      }
   }
 
   $_onlyif = $onlyif_function ? {
-    'table_exists' => "SELECT true FROM pg_tables WHERE tablename = '${_togrant_object}'",
-    default        => undef,
+    'table_exists'    => "SELECT true FROM pg_tables WHERE tablename = '${_togrant_object}'",
+    'language_exists' => "SELECT true from pg_language WHERE lanname = '${_togrant_object}'",
+    'role_exists'     => "SELECT 1 FROM pg_roles WHERE rolname = '${role}' or '${role}' = 'PUBLIC'",
+    'function_exists' => "SELECT true FROM pg_proc WHERE (oid::regprocedure)::text = '${_togrant_object}${arguments}'",
+    default           => undef,
   }
 
-  $grant_cmd = "GRANT ${_privilege} ON ${_object_type} \"${_togrant_object}\" TO
-      \"${role}\""
+  $grant_cmd = $_enquote_object ? {
+      false   => sprintf($sql_command_unquoted, $_privilege, $_object_type, $_togrant_object, $arguments, $role),
+      default => sprintf($sql_command, $_privilege, $_object_type, $_togrant_object, $arguments, $role),
+  }
+
   postgresql_psql { "grant:${name}":
     command          => $grant_cmd,
     db               => $on_db,
@@ -264,7 +471,6 @@ define postgresql::server::grant (
     psql_path        => $psql_path,
     unless           => $_unless,
     onlyif           => $_onlyif,
-    require          => Class['postgresql::server']
   }
 
   if($role != undef and defined(Postgresql::Server::Role[$role])) {

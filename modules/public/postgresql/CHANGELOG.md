@@ -1,3 +1,335 @@
+# Change log
+
+All notable changes to this project will be documented in this file. The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) and this project adheres to [Semantic Versioning](http://semver.org).
+
+## [v6.5.0](https://github.com/puppetlabs/puppetlabs-postgresql/tree/v6.5.0) (2020-05-13)
+
+[Full Changelog](https://github.com/puppetlabs/puppetlabs-postgresql/compare/v6.4.0...v6.5.0)
+
+### Added
+
+- service\_ensure =\> true is now an allowed value \(aliased to running\)  [\#1167](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1167) ([binford2k](https://github.com/binford2k))
+- Finish conversion of `postgresql\_acls\_to\_resources\_hash` function [\#1163](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1163) ([alexjfisher](https://github.com/alexjfisher))
+- Finish conversion of `postgresql\_escape` function [\#1162](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1162) ([alexjfisher](https://github.com/alexjfisher))
+- Finish conversion of `postgresql\_password` function [\#1161](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1161) ([alexjfisher](https://github.com/alexjfisher))
+- Allow usage of grant and role when not managing postgresql::server [\#1159](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1159) ([tuxmea](https://github.com/tuxmea))
+- Add version configs for SLES 12 SP 3 to 5 [\#1158](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1158) ([XnS](https://github.com/XnS))
+- Add extra parameter "extra\_systemd\_config"  [\#1156](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1156) ([veninga](https://github.com/veninga))
+
+### Fixed
+
+- \(MODULES-10610\) Use correct lower bound for concat version [\#1160](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1160) ([ghoneycutt](https://github.com/ghoneycutt))
+
+## [v6.4.0](https://github.com/puppetlabs/puppetlabs-postgresql/tree/v6.4.0) (2020-03-17)
+
+[Full Changelog](https://github.com/puppetlabs/puppetlabs-postgresql/compare/v6.3.0...v6.4.0)
+
+### Added
+
+- Add Fedora 31 compatibility [\#1141](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1141) ([blackknight36](https://github.com/blackknight36))
+- feat: enable different database resource name in extension [\#1136](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1136) ([jfroche](https://github.com/jfroche))
+- pdksync - \(FM-8581\) - Debian 10 added to travis and provision file refactored [\#1130](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1130) ([david22swan](https://github.com/david22swan))
+- Puppet 4 functions [\#1129](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1129) ([binford2k](https://github.com/binford2k))
+
+### Fixed
+
+- Fix incorrectly quoted GRANT cmd on functions [\#1150](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1150) ([olifre](https://github.com/olifre))
+- Correct versioncmp logic in config.pp [\#1137](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1137) ([boydtom](https://github.com/boydtom))
+- Treat $version as an integer for comparison, defaults to string [\#1135](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1135) ([boydtom](https://github.com/boydtom))
+- Allow usage of PUBLIC role [\#1134](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1134) ([Vampouille](https://github.com/Vampouille))
+- fix missing systemd override config for EL8 \(CentOS and RHEL\) [\#1131](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1131) ([david-barbion](https://github.com/david-barbion))
+
+## [v6.3.0](https://github.com/puppetlabs/puppetlabs-postgresql/tree/v6.3.0) (2019-12-18)
+
+[Full Changelog](https://github.com/puppetlabs/puppetlabs-postgresql/compare/v6.2.0...v6.3.0)
+
+### Added
+
+- Add support for granting privileges on functions [\#1118](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1118) ([crispygoth](https://github.com/crispygoth))
+- \(FM-8679\) - Support added for CentOS 8 [\#1117](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1117) ([david22swan](https://github.com/david22swan))
+- MODULES-10041 - allow define password\_encryption for version above 10 [\#1111](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1111) ([k2patel](https://github.com/k2patel))
+
+### Fixed
+
+- Remove duplicate REFERENCE.md file with strange unicode character at end of filename [\#1108](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1108) ([nudgegoonies](https://github.com/nudgegoonies))
+
+## [v6.2.0](https://github.com/puppetlabs/puppetlabs-postgresql/tree/v6.2.0) (2019-09-12)
+
+[Full Changelog](https://github.com/puppetlabs/puppetlabs-postgresql/compare/v6.1.0...v6.2.0)
+
+### Added
+
+- FM-8408 - add support on Debian10 [\#1103](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1103) ([lionce](https://github.com/lionce))
+- Fix/directory defined twice [\#1089](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1089) ([arcenik](https://github.com/arcenik))
+- Adding SLES 15 [\#1087](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1087) ([msurato](https://github.com/msurato))
+- \(FM-7500\) conversion to use litmus [\#1081](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1081) ([tphoney](https://github.com/tphoney))
+
+### Fixed
+
+- \(MODULES-9658\) - custom ports are not labeled correctly [\#1099](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1099) ([blackknight36](https://github.com/blackknight36))
+- Fix: When assigning a tablespace to a database, no equal sign is needed in the query [\#1098](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1098) ([biertie](https://github.com/biertie))
+- Grant all tables in schema fixup [\#1096](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1096) ([georgehansper](https://github.com/georgehansper))
+- \(MODULES-9219\) - puppetlabs-postgresql : catalog compilation fails when the service command is not installed [\#1093](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1093) ([blackknight36](https://github.com/blackknight36))
+
+## [v6.1.0](https://github.com/puppetlabs/puppetlabs-postgresql/tree/v6.1.0) (2019-06-04)
+
+[Full Changelog](https://github.com/puppetlabs/puppetlabs-postgresql/compare/v6.0.0...v6.1.0)
+
+### Added
+
+- \(FM-8031\) Add RedHat 8 support [\#1083](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1083) ([eimlav](https://github.com/eimlav))
+
+## [v6.0.0](https://github.com/puppetlabs/puppetlabs-postgresql/tree/v6.0.0) (2019-05-14)
+
+[Full Changelog](https://github.com/puppetlabs/puppetlabs-postgresql/compare/5.12.1...v6.0.0)
+
+### Changed
+
+- pdksync - \(MODULES-8444\) - Raise lower Puppet bound [\#1070](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1070) ([david22swan](https://github.com/david22swan))
+- \(maint\) remove inconsistent extra variable [\#1044](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1044) ([binford2k](https://github.com/binford2k))
+
+### Added
+
+- Add Fedora 30 compatibility [\#1067](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1067) ([blackknight36](https://github.com/blackknight36))
+- Include EL8 version for config checks [\#1060](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1060) ([ehelms](https://github.com/ehelms))
+
+### Fixed
+
+- Support current version of puppetlabs/apt. [\#1073](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1073) ([pillarsdotnet](https://github.com/pillarsdotnet))
+- change username/group/datadir defaults for FreeBSD [\#1063](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1063) ([olevole](https://github.com/olevole))
+
+## [5.12.1](https://github.com/puppetlabs/puppetlabs-postgresql/tree/5.12.1) (2019-02-14)
+
+[Full Changelog](https://github.com/puppetlabs/puppetlabs-postgresql/compare/5.12.0...5.12.1)
+
+### Fixed
+
+- \(FM-7811\) - Use postgresql 9.4 for SLES 11 sp4 [\#1057](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1057) ([david22swan](https://github.com/david22swan))
+- \(MODULES-8553\) Further cleanup for package tag issues [\#1055](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1055) ([HelenCampbell](https://github.com/HelenCampbell))
+
+## [5.12.0](https://github.com/puppetlabs/puppetlabs-postgresql/tree/5.12.0) (2019-02-01)
+
+[Full Changelog](https://github.com/puppetlabs/puppetlabs-postgresql/compare/5.11.0...5.12.0)
+
+### Added
+
+- \(MODULES-3804\) Fix sort order of pg\_hba\_rule entries [\#1040](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1040) ([olavmrk](https://github.com/olavmrk))
+
+### Fixed
+
+- \(MODULES-8553\) Fix dependency on apt by explicitly using 'puppetlabs-postgresql' as tag [\#1052](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1052) ([HelenCampbell](https://github.com/HelenCampbell))
+- \(MODULES-8352\) Don't use empty encoding string on initdb [\#1043](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1043) ([binford2k](https://github.com/binford2k))
+- pdksync - \(FM-7655\) Fix rubygems-update for ruby \< 2.3 [\#1042](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1042) ([tphoney](https://github.com/tphoney))
+
+## [5.11.0](https://github.com/puppetlabs/puppetlabs-postgresql/tree/5.11.0) (2018-11-21)
+
+[Full Changelog](https://github.com/puppetlabs/puppetlabs-postgresql/compare/5.10.0...5.11.0)
+
+### Added
+
+- Add postgis support for postgres 10 [\#1032](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1032) ([smussie](https://github.com/smussie))
+
+### Fixed
+
+- Strip quotes from role names [\#1034](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1034) ([jstuart](https://github.com/jstuart))
+- Ignore .psqlrc so output is clean and doesn't break Puppet [\#1021](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1021) ([flaviogurgel](https://github.com/flaviogurgel))
+- Change initdb option '--xlogdir' to '-X' for PG10 compatibility [\#976](https://github.com/puppetlabs/puppetlabs-postgresql/pull/976) ([fcanovai](https://github.com/fcanovai))
+
+## [5.10.0](https://github.com/puppetlabs/puppetlabs-postgresql/tree/5.10.0) (2018-09-27)
+
+[Full Changelog](https://github.com/puppetlabs/puppetlabs-postgresql/compare/5.9.0...5.10.0)
+
+### Added
+
+- pdksync - \(MODULES-6805\) metadata.json shows support for puppet 6 [\#1026](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1026) ([tphoney](https://github.com/tphoney))
+
+## [5.9.0](https://github.com/puppetlabs/puppetlabs-postgresql/tree/5.9.0) (2018-09-06)
+
+[Full Changelog](https://github.com/puppetlabs/puppetlabs-postgresql/compare/5.8.0...5.9.0)
+
+### Added
+
+- pdksync - \(MODULES-7705\) - Bumping stdlib dependency from \< 5.0.0 to \< 6.0.0 [\#1018](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1018) ([pmcmaw](https://github.com/pmcmaw))
+
+## [5.8.0](https://github.com/puppetlabs/puppetlabs-postgresql/tree/5.8.0) (2018-08-06)
+
+[Full Changelog](https://github.com/puppetlabs/puppetlabs-postgresql/compare/5.7.0...5.8.0)
+
+### Added
+
+- metadata.json: bump allowed version of puppetlabs-apt to 6.0.0 [\#1012](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1012) ([mateusz-gozdek-sociomantic](https://github.com/mateusz-gozdek-sociomantic))
+
+## [5.7.0](https://github.com/puppetlabs/puppetlabs-postgresql/tree/5.7.0) (2018-07-19)
+
+[Full Changelog](https://github.com/puppetlabs/puppetlabs-postgresql/compare/5.6.0...5.7.0)
+
+### Added
+
+- \(MODULES-7479\) Update postgresql to support Ubuntu 18.04 [\#1005](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1005) ([david22swan](https://github.com/david22swan))
+- \(MODULES-6542\) - Adding SLES 11 & 12 to metadata [\#1001](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1001) ([pmcmaw](https://github.com/pmcmaw))
+
+### Fixed
+
+- \(MODULES-7479\) Ensure net-tools is installed when testing on Ubuntu 18.04 [\#1006](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1006) ([david22swan](https://github.com/david22swan))
+- \(MODULES-7460\) - Updating grant table to include INSERT privileges [\#1004](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1004) ([pmcmaw](https://github.com/pmcmaw))
+- Fix packages choice for ubuntu 17.10 [\#1000](https://github.com/puppetlabs/puppetlabs-postgresql/pull/1000) ([fflorens](https://github.com/fflorens))
+
+## [5.6.0](https://github.com/puppetlabs/puppetlabs-postgresql/tree/5.6.0) (2018-06-20)
+
+[Full Changelog](https://github.com/puppetlabs/puppetlabs-postgresql/compare/5.5.0...5.6.0)
+
+### Changed
+
+- Fix creation of recovery.conf file when recovery configuration is not specified [\#995](https://github.com/puppetlabs/puppetlabs-postgresql/pull/995) ([cdloh](https://github.com/cdloh))
+
+### Added
+
+- Add compatibility for Fedora 28 [\#994](https://github.com/puppetlabs/puppetlabs-postgresql/pull/994) ([jflorian](https://github.com/jflorian))
+- \(MODULES-5994\) Add debian 9 [\#992](https://github.com/puppetlabs/puppetlabs-postgresql/pull/992) ([hunner](https://github.com/hunner))
+- Adding default Postgresql version for Ubuntu 18.04 [\#981](https://github.com/puppetlabs/puppetlabs-postgresql/pull/981) ([lutaylor](https://github.com/lutaylor))
+
+### Fixed
+
+- Fix quoting on schema owners [\#979](https://github.com/puppetlabs/puppetlabs-postgresql/pull/979) ([hasegeli](https://github.com/hasegeli))
+
+## [5.5.0](https://github.com/puppetlabs/puppetlabs-postgresql/tree/5.5.0) (2018-04-06)
+
+[Full Changelog](https://github.com/puppetlabs/puppetlabs-postgresql/compare/5.4.0...5.5.0)
+
+### Added
+
+- Parameters `roles`, `config\_entires`, and `pg\_hba\_rules` to `postgresql::server` for hiera [\#950](https://github.com/puppetlabs/puppetlabs-postgresql/pull/950) ([ekohl](https://github.com/ekohl))
+
+## [5.4.0](https://github.com/puppetlabs/puppetlabs-postgresql/tree/5.4.0) (2018-03-22)
+
+[Full Changelog](https://github.com/puppetlabs/puppetlabs-postgresql/compare/5.3.0...5.4.0)
+
+### Added
+
+- \(MODULES-6330\) PDK convert 1.4.1 [\#961](https://github.com/puppetlabs/puppetlabs-postgresql/pull/961) ([pmcmaw](https://github.com/pmcmaw))
+- Parameter `ensure` on `postgresql::server::grant` and `postgresql::server::database\_grant` [\#891](https://github.com/puppetlabs/puppetlabs-postgresql/pull/891) ([georgehansper](https://github.com/georgehansper))
+
+### Fixed
+
+- Documentation error, `reassign\_owned\_by` uses `\*\_role` not `\*\_owner`. [\#958](https://github.com/puppetlabs/puppetlabs-postgresql/pull/958) ([computermouth](https://github.com/computermouth))
+
+## 5.3.0
+### Summary
+Implements rubocop changes within the module, alongside other smaller changes.
+
+#### Added
+- ensure=>absent added to postgresql::server:role.
+- Support added for Fedora 27.
+- scram-sha-256 added as a valid ph_hba_rule auth method.
+- 9.6 settings inherited for later PgSQL versions on FreeBSD.
+- A require has been added for puppet.
+
+#### Changed
+- Changes made to avoid the useless loading of files by augeas.
+- Modulesync changes.
+- psql_path defaulted to postgresql::server::psql_path.
+- Rubocop changes have been made.
+
+#### Removed
+- Debian 9 support deprecated.
+
+## Supported Release 5.2.1
+### Summary
+Bug fix for issue introduced in 5.2.0
+
+#### Fixed
+- issue where the module was attempting to install extensions before a database was available. ([SERVER-2003](https://tickets.puppetlabs.com/browse/SERVER-2003))
+
+## Supported Release 5.2.0
+### Summary
+Adds several new features including some work around OS support. Also includes a couple of fixes to tests and the removal of unsupported Ubuntu versions.
+
+#### Added
+- Added default postgresql version of Ubuntu 17.4 version to the globals.pp file.
+- Fedora 26 provides postgresql-server version 9.6 by default - Added support to manifests/globals.pp to avoid puppet failures on Fedora 26 nodes.
+- Use postgresql 9.6 for the newest SLES and openSUSE releases.
+- Enhanced --data-checksums on initdb.
+- Added support for Debian version 9.
+- Added a `version` parameter.
+
+#### Changed
+- Replaced validate_re calls with puppet datatype `Pattern` and is_array calls with puppet datatype `Array`.
+- Installation method for apt in the spec_helper_acceptance, this is a temporary workaround due to issues with module installation.
+
+#### Fixed
+- Updated spec tests to remove deprecation warnings.
+- Docs formatting.
+- Pass default_connect_settings to validate service ([MODULES-4682](https://tickets.puppetlabs.com/browse/MODULES-4682))
+- Rocket Alignment for Lint.
+- Fixed changes in error messages in tests ([MODULES-5378](https://tickets.puppetlabs.com/browse/MODULES-5378))
+
+#### Removed
+- Removed unsupported Ubuntu versions 10.04 and 12.04 ([MODULES-5501](https://tickets.puppetlabs.com/browse/MODULES-5501))
+- Removed unsupported Debian version 6.
+- Removed numeric order override.
+
+## Supported Release 5.1.0
+### Summary
+This release includes Japanese translations for internationalization, Puppet 5 support, implementation of defined type postgresql::server::reassign_owned_by.
+
+#### Features
+- Updating translations for readmes/README_ja_JP.md
+- add defined type postgresql::server::reassign_owned_by
+- Allow order parameter to be string value
+- prep for puppet 5 ([MODULES-5144](https://tickets.puppetlabs.com/browse/MODULES-5144))
+- add data_checksums option to initdb
+- parameter ensure of custom resource postgresql_replication_slot is not documented ([MODULES-2989](https://tickets.puppetlabs.com/browse/MODULES-2989))
+
+#### Bug Fixes
+- Adding a space for header formatting
+- use https for apt.postgresql.org repo
+- msync puppet 5 and ruby 2.4 ([MODULES-5197](https://tickets.puppetlabs.com/browse/MODULES-5187))
+- Only run test on postgresql >= 9.0 ([FM-6240](https://tickets.puppetlabs.com/browse/FM-6240))
+- Fix Ruby 2.4 deprecation in postgresql_acls_to_resources_hash
+
+## Supported Release 5.0.0
+### Summary
+This **major** release dropped support for Puppet 3 and PostgreSQL 8.x, added Puppet 4 data types, and deprecated the validate_db_connection type.
+
+#### Added
+- `locales/` directory, .pot file, and i18n `config.yaml`. ([FM-6116](https://tickets.puppet.com/browse/FM-6116))
+- `update_password` parameter to toggle password management per role.
+- **Puppet 4** type validation.
+- new `postgresql_conn_validator` custom type and deprecated `validate_db_connection`. ([MODULES-1394](https://tickets.puppet.com/browse/MODULES-1394))
+
+#### Changed
+- default postgis versions in postgresql::globals to use newer versions.
+- puppetlabs-concat and puppetlabs-apt dependencies to use latest versions. ([MODULES-4906](https://tickets.puppet.com/browse/MODULES-4906), [MODULES-4947](https://tickets.puppet.com/browse/MODULES-4947))
+- default value for `log_line_prefix` to `undef`.
+- `listen_addresses` default value to 'localhost'. Allows for it to be set independently of a class declaration.
+- use of stdlib validate_* functions. They have been removed in favor of Puppet 4 type validation.
+- lower Puppet dependency in metadata to 4.7.0. ([MODULES-4826](https://tickets.puppet.com/browse/MODULES-4826))
+
+#### Fixed
+- deprecated apt::source parameters(`key`,`key_source`, & `include_src`).
+- default SUSE parameters. ([MODULES-4598](https://tickets.puppet.com/browse/MODULES-4598))
+- use of force parameter on concat resources.
+
+## Supported Release 4.9.0
+### Summary
+This release adds several types and, among other bugs, fixes an issue with the yum URL.
+
+#### Features
+- Modifying ownership of databases and schemas now available (MODULES-3247)
+- Use `module_workdir` to specify a custom directory in which to execute psql commands
+- `grant_role` and `grant` types added!
+- Support for parallel unit testing (parallel_tests)
+- Override download/installation repo URL with `repo_baseurl`
+- Set your timezone with `timezone`
+- Grant privileges on LANGUAGEs
+- Added support for Debian Stretch and Ubuntu Yakkety Yak
+
+#### Bugfixes
+- Usernames and passwords are now converted to strings before password hash is created
+- Specify default database name if it is not the username
+- Update to yum repo
+- Schema name conflicts fix
+
 ## Supported Release 4.8.0
 ### Summary
 This release primarily fixes an issue with `postgresql_conf` values of ipaddresses being considered floats and not getting quoted.
@@ -854,3 +1186,9 @@ Notable features:
  * Remove trailing commas. (e6af5e5)
 
 2012-08-16 - Version 0.2.0 released
+
+[5.4.0]:https://github.com/puppetlabs/puppetlabs-apache/compare/5.3.0...5.4.0
+[5.3.0]:https://github.com/puppetlabs/puppetlabs-apache/compare/5.2.1...5.3.0
+
+
+\* *This Changelog was automatically generated by [github_changelog_generator](https://github.com/skywinder/Github-Changelog-Generator)*

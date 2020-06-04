@@ -1,4 +1,4 @@
-# PRIVATE CLASS: do not call directly
+# @api private
 class postgresql::server::service {
   $service_ensure   = $postgresql::server::service_ensure
   $service_enable   = $postgresql::server::service_enable
@@ -9,6 +9,8 @@ class postgresql::server::service {
   $user             = $postgresql::server::user
   $port             = $postgresql::server::port
   $default_database = $postgresql::server::default_database
+  $psql_path        = $postgresql::server::psql_path
+  $connect_settings = $postgresql::server::default_connect_settings
 
   anchor { 'postgresql::server::service::begin': }
 
@@ -23,22 +25,24 @@ class postgresql::server::service {
       status    => $service_status,
     }
 
-    if $service_ensure == 'running' {
+    if $service_ensure in ['running', true] {
       # This blocks the class before continuing if chained correctly, making
       # sure the service really is 'up' before continuing.
       #
       # Without it, we may continue doing more work before the database is
       # prepared leading to a nasty race condition.
-      postgresql::validate_db_connection { 'validate_service_is_running':
-        run_as          => $user,
-        database_name   => $default_database,
-        database_port   => $port,
-        sleep           => 1,
-        tries           => 60,
-        create_db_first => false,
-        require         => Service['postgresqld'],
-        before          => Anchor['postgresql::server::service::end']
+      postgresql_conn_validator{ 'validate_service_is_running':
+        run_as           => $user,
+        db_name          => $default_database,
+        port             => $port,
+        connect_settings => $connect_settings,
+        sleep            => 1,
+        tries            => 60,
+        psql_path        => $psql_path,
+        require          => Service['postgresqld'],
+        before           => Anchor['postgresql::server::service::end']
       }
+      Postgresql::Server::Database <| title == $default_database |> -> Postgresql_conn_validator['validate_service_is_running']
     }
   }
 

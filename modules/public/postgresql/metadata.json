@@ -1,25 +1,34 @@
 {
   "name": "puppetlabs-postgresql",
-  "version": "4.8.0",
+  "version": "6.5.0",
   "author": "Inkling/Puppet Labs",
   "summary": "Offers support for basic management of PostgreSQL databases.",
   "license": "Apache-2.0",
-  "source": "git://github.com/puppetlabs/puppetlabs-postgresql.git",
+  "source": "https://github.com/puppetlabs/puppetlabs-postgresql",
   "project_page": "https://github.com/puppetlabs/puppetlabs-postgresql",
   "issues_url": "https://tickets.puppetlabs.com/browse/MODULES",
   "dependencies": [
-    {"name":"puppetlabs/stdlib","version_requirement":"4.x"},
-    {"name":"puppetlabs/apt","version_requirement":">=1.8.0 <3.0.0"},
-    {"name":"puppetlabs/concat","version_requirement":">= 1.1.0 <3.0.0"}
+    {
+      "name": "puppetlabs/stdlib",
+      "version_requirement": ">= 4.13.1 < 7.0.0"
+    },
+    {
+      "name": "puppetlabs/apt",
+      "version_requirement": ">= 2.0.0 < 8.0.0"
+    },
+    {
+      "name": "puppetlabs/concat",
+      "version_requirement": ">= 4.1.0 < 7.0.0"
+    }
   ],
-  "data_provider": null,
   "operatingsystem_support": [
     {
       "operatingsystem": "RedHat",
       "operatingsystemrelease": [
         "5",
         "6",
-        "7"
+        "7",
+        "8"
       ]
     },
     {
@@ -27,7 +36,8 @@
       "operatingsystemrelease": [
         "5",
         "6",
-        "7"
+        "7",
+        "8"
       ]
     },
     {
@@ -41,7 +51,6 @@
     {
       "operatingsystem": "Scientific",
       "operatingsystemrelease": [
-        "5",
         "6",
         "7"
       ]
@@ -49,25 +58,35 @@
     {
       "operatingsystem": "Debian",
       "operatingsystemrelease": [
-        "6",
-        "7",
-        "8"
+        "8",
+        "9",
+        "10"
+      ]
+    },
+    {
+      "operatingsystem": "SLES",
+      "operatingsystemrelease": [
+        "11",
+        "12",
+        "15"
       ]
     },
     {
       "operatingsystem": "Ubuntu",
       "operatingsystemrelease": [
-        "10.04",
-        "12.04",
         "14.04",
-        "16.04"
+        "16.04",
+        "18.04"
       ]
     }
   ],
   "requirements": [
     {
       "name": "puppet",
-      "version_requirement": ">= 3.0.0 < 5.0.0"
+      "version_requirement": ">= 5.5.10 < 7.0.0"
     }
-  ]
+  ],
+  "pdk-version": "1.17.0",
+  "template-url": "https://github.com/puppetlabs/pdk-templates#master",
+  "template-ref": "1.17.0-0-gd3a4319"
 }

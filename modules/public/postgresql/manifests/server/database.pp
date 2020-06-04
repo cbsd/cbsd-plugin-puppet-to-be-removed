@@ -1,4 +1,14 @@
-# Define for creating a database. See README.md for more details.
+# @summary Define for creating a database.
+#
+# @param comment Sets a comment on the database.
+# @param dbname Sets the name of the database.
+# @param owner Sets name of the database owner.
+# @param tablespace Sets tablespace for where to create this database.
+# @param template Specifies the name of the template database from which to build this database. Default value: 'template0'.
+# @param encoding Overrides the character set during creation of the database.
+# @param locale Overrides the locale during creation of the database.
+# @param istemplate Defines the database as a template if set to true.
+# @param connect_settings Specifies a hash of environment variables used when connecting to a remote server.
 define postgresql::server::database(
   $comment          = undef,
   $dbname           = $title,
@@ -66,7 +76,7 @@ define postgresql::server::database(
 
   $tablespace_option = $tablespace ? {
     undef   => '',
-    default => "TABLESPACE = \"${tablespace}\"",
+    default => "TABLESPACE \"${tablespace}\"",
   }
 
   if $createdb_path != undef {
@@ -77,16 +87,16 @@ define postgresql::server::database(
     command => "CREATE DATABASE \"${dbname}\" WITH ${template_option} ${encoding_option} ${locale_option} ${tablespace_option}",
     unless  => "SELECT 1 FROM pg_database WHERE datname = '${dbname}'",
     require => Class['postgresql::server::service']
-  }~>
+  }
 
   # This will prevent users from connecting to the database unless they've been
   #  granted privileges.
-  postgresql_psql { "REVOKE ${public_revoke_privilege} ON DATABASE \"${dbname}\" FROM public":
+  ~> postgresql_psql { "REVOKE ${public_revoke_privilege} ON DATABASE \"${dbname}\" FROM public":
     refreshonly => true,
   }
 
-  Postgresql_psql["CREATE DATABASE \"${dbname}\""]->
-  postgresql_psql { "UPDATE pg_database SET datistemplate = ${istemplate} WHERE datname = '${dbname}'":
+  Postgresql_psql["CREATE DATABASE \"${dbname}\""]
+  -> postgresql_psql { "UPDATE pg_database SET datistemplate = ${istemplate} WHERE datname = '${dbname}'":
     unless => "SELECT 1 FROM pg_database WHERE datname = '${dbname}' AND datistemplate = ${istemplate}",
   }
 
@@ -96,8 +106,8 @@ define postgresql::server::database(
       '8.1'   => 'obj_description',
       default => 'shobj_description',
     }
-    Postgresql_psql["CREATE DATABASE \"${dbname}\""]->
-    postgresql_psql { "COMMENT ON DATABASE \"${dbname}\" IS '${comment}'":
+    Postgresql_psql["CREATE DATABASE \"${dbname}\""]
+    -> postgresql_psql { "COMMENT ON DATABASE \"${dbname}\" IS '${comment}'":
       unless => "SELECT 1 FROM pg_catalog.pg_database d WHERE datname = '${dbname}' AND pg_catalog.${comment_information_function}(d.oid, 'pg_database') = '${comment}'",
       db     => $dbname,
     }

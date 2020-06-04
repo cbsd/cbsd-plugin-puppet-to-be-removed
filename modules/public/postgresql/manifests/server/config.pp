@@ -1,4 +1,4 @@
-# PRIVATE CLASS: do not call directly
+# @api private
 class postgresql::server::config {
   $ip_mask_deny_postgres_user = $postgresql::server::ip_mask_deny_postgres_user
   $ip_mask_allow_all_users    = $postgresql::server::ip_mask_allow_all_users
@@ -22,6 +22,8 @@ class postgresql::server::config {
   $service_name               = $postgresql::server::service_name
   $log_line_prefix            = $postgresql::server::log_line_prefix
   $timezone                   = $postgresql::server::timezone
+  $password_encryption        = $postgresql::server::password_encryption
+  $extra_systemd_config       = $postgresql::server::extra_systemd_config
 
   if ($manage_pg_hba_conf == true) {
     # Prepare the main pg_hba file
@@ -49,65 +51,101 @@ class postgresql::server::config {
         user        => $user,
         auth_method => 'ident',
         auth_option => $local_auth_option,
-        order       => '001',
+        order       => 1,
       }
       postgresql::server::pg_hba_rule { 'local access to database with same name':
         type        => 'local',
         auth_method => 'ident',
         auth_option => $local_auth_option,
-        order       => '002',
+        order       => 2,
       }
       postgresql::server::pg_hba_rule { 'allow localhost TCP access to postgresql user':
         type        => 'host',
         user        => $user,
         address     => '127.0.0.1/32',
         auth_method => 'md5',
-        order       => '003',
+        order       => 3,
       }
       postgresql::server::pg_hba_rule { 'deny access to postgresql user':
         type        => 'host',
         user        => $user,
         address     => $ip_mask_deny_postgres_user,
         auth_method => 'reject',
-        order       => '004',
+        order       => 4,
       }
 
       postgresql::server::pg_hba_rule { 'allow access to all users':
         type        => 'host',
         address     => $ip_mask_allow_all_users,
         auth_method => 'md5',
-        order       => '100',
+        order       => 100,
       }
       postgresql::server::pg_hba_rule { 'allow access to ipv6 localhost':
         type        => 'host',
         address     => '::1/128',
         auth_method => 'md5',
-        order       => '101',
+        order       => 101,
       }
     }
 
-    # ipv4acls are passed as an array of rule strings, here we transform
-    # them into a resources hash, and pass the result to create_resources
-    $ipv4acl_resources = postgresql_acls_to_resources_hash($ipv4acls,
-    'ipv4acls', 10)
-    create_resources('postgresql::server::pg_hba_rule', $ipv4acl_resources)
-
-
-    # ipv6acls are passed as an array of rule strings, here we transform
-    # them into a resources hash, and pass the result to create_resources
-    $ipv6acl_resources = postgresql_acls_to_resources_hash($ipv6acls,
-    'ipv6acls', 102)
-    create_resources('postgresql::server::pg_hba_rule', $ipv6acl_resources)
+    # $ipv4acls and $ipv6acls are arrays of rule strings
+    # They are converted into hashes we can iterate over to create postgresql::server::pg_hba_rule resources.
+    (
+      postgresql::postgresql_acls_to_resources_hash($ipv4acls, 'ipv4acls', 10) +
+      postgresql::postgresql_acls_to_resources_hash($ipv6acls, 'ipv6acls', 102)
+    ).each | String $key, Hash $attrs| {
+      postgresql::server::pg_hba_rule { $key:
+        * => $attrs,
+      }
+    }
   }
 
-  # We must set a "listen_addresses" line in the postgresql.conf if we
-  # want to allow any connections from remote hosts.
-  postgresql::server::config_entry { 'listen_addresses':
-    value => $listen_addresses,
+  if $listen_addresses {
+    postgresql::server::config_entry { 'listen_addresses':
+      value => $listen_addresses,
+    }
   }
+
+  # ensure that SELinux has a proper label for the port defined
+  if $postgresql::server::manage_selinux == true and $facts['selinux'] == true {
+    case $facts['osfamily'] {
+      'RedHat', 'Linux': {
+        if $facts['operatingsystem'] == 'Amazon' {
+          $package_name = 'policycoreutils'
+        }
+        else {
+          $package_name = $facts['operatingsystemmajrelease'] ? {
+            '5'     => 'policycoreutils',
+            '6'     => 'policycoreutils-python',
+            '7'     => 'policycoreutils-python',
+            default => 'policycoreutils-python-utils',
+          }
+        }
+      }
+      default: {
+        $package_name = 'policycoreutils'
+      }
+    }
+
+    ensure_packages([$package_name])
+
+    exec { "/usr/sbin/semanage port -a -t postgresql_port_t -p tcp ${port}":
+        unless  => "/usr/sbin/semanage port -l | grep -qw ${port}",
+        before  => Postgresql::Server::Config_entry['port'],
+        require => Package[$package_name],
+    }
+  }
+
   postgresql::server::config_entry { 'port':
     value => $port,
   }
+
+  if ($password_encryption) and (versioncmp($version, '10') >= 0){
+    postgresql::server::config_entry { 'password_encryption':
+      value => $password_encryption,
+    }
+  }
+
   postgresql::server::config_entry { 'data_directory':
     value => $datadir,
   }
@@ -131,7 +169,7 @@ class postgresql::server::config {
 
   # RedHat-based systems hardcode some PG* variables in the init script, and need to be overriden
   # in /etc/sysconfig/pgsql/postgresql. Create a blank file so we can manage it with augeas later.
-  if ($::osfamily == 'RedHat') and ($::operatingsystemrelease !~ /^7/) and ($::operatingsystem != 'Fedora') {
+  if ($::osfamily == 'RedHat') and ($::operatingsystemrelease !~ /^7|^8/) and ($::operatingsystem != 'Fedora') {
     file { '/etc/sysconfig/pgsql/postgresql':
       ensure  => present,
       replace => false,
@@ -154,18 +192,6 @@ class postgresql::server::config {
     concat { $pg_ident_conf_path:
       owner  => $user,
       group  => $group,
-      force  => true, # do not crash if there is no pg_ident_rules
-      mode   => '0640',
-      warn   => true,
-      notify => Class['postgresql::server::reload'],
-    }
-  }
-
-  if ($manage_recovery_conf == true) {
-    concat { $recovery_conf_path:
-      owner  => $user,
-      group  => $group,
-      force  => true, # do not crash if there is no recovery conf file
       mode   => '0640',
       warn   => true,
       notify => Class['postgresql::server::reload'],
@@ -173,7 +199,7 @@ class postgresql::server::config {
   }
 
   if $::osfamily == 'RedHat' {
-    if $::operatingsystemrelease =~ /^7/ or $::operatingsystem == 'Fedora' {
+    if $::operatingsystemrelease =~ /^7|^8/ or $::operatingsystem == 'Fedora' {
       # Template uses:
       # - $::operatingsystem
       # - $service_name
