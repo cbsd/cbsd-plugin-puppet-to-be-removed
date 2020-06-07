@@ -52,18 +52,6 @@ ldconfig_start()
 	fi
 }
 
-#
-#### # WITH local puppet: ###
-#if [ ! -x /usr/local/bin/puppet ]; then
-#	env ASSUME_ALWAYS_YES=yes pkg install -y sysutils/puppet6
-#fi
-#
-## run it twice
-#/usr/local/bin/puppet apply --hiera_config /usr/local/etc/puppet/hiera.yaml --color false --modulepath=/usr/local/etc/puppet/modules $@
-#/usr/local/bin/puppet apply --hiera_config /usr/local/etc/puppet/hiera.yaml --color false --modulepath=/usr/local/etc/puppet/modules $@
-
-#exit 0
-
 #### OLD method ###
 if [ "${1}" = "debug" ]; then
 	shift

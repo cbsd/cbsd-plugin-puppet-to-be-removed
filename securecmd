@@ -3,6 +3,4 @@ SECCMD="\
 ${SECCMD}
 puppet \
 sync_env2form \
-puppet_copy_manifest \
-puppet-cbsdpuppetjail 
 "
