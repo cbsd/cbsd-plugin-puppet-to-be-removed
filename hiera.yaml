@@ -9,6 +9,6 @@ defaults:
   # data_hash: yaml_data
 hierarchy:
   - name: "CBSD YAML hierarchy levels"
-    datadir: /tmp/cbsd/hieradata
+    datadir: /tmp/cbsd/puppet_root/hieradata
     paths:
       - "common.yaml"

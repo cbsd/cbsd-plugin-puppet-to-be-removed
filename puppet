@@ -3,11 +3,12 @@
 MYARG="jname"
 MYOPTARG="mode formfile debug_form module"
 MYDESC="Generate puppet manifests"
-ADDHELP="module= specify module name\n\
-mode= apply - puppet apply\n\
-jname= can CBSDSYS or cbsdpuppet1 for configure current system or just create manifest\n"
+ADDHELP=" module= specify module name\n\
+ mode= apply - puppet apply\n\
+ jname= can CBSDSYS or cbsdpuppet1 for configure current system or just create manifest\n"
 
 . ${subr}
+. ${system}		# is_mounted func
 
 apply_in_jail_remote()
 {
@@ -48,13 +49,9 @@ EOF
 
 	echo "***"
 
-	${UMOUNT_CMD} ${path}/usr/local/etc/puppet/modules
-	${UMOUNT_CMD} ${path}/tmp/puppet/etc/puppet
-	${UMOUNT_CMD} ${path}/tmp/puppet
-
-	if [ -z "${module}" ]; then
-		${UMOUNT_CMD} ${path}${jail_workdir}/puppet_root
-	fi
+	for _i in ${path}/tmp/cbsdpuppet/modules/public ${path}/tmp/cbsdpuppet ${path}${jail_workdir}/puppet_root; do
+		is_mounted ${_i} && ${UMOUNT_CMD} -f ${_i}
+	done
 
 	if [ ${_was_started} -eq 0 ]; then
 		jstop jname=${jname}
@@ -67,7 +64,6 @@ EOF
 apply_in_jail_local()
 {
 	${ECHO} "${N1_COLOR}${CBSD_APP}: ${N2_COLOR}apply...${N0_COLOR}"
-	# pkg update -f needed ? checksum mismatch error!!!
 
 	if [ ${debug_form} -eq 1 ]; then
 		case "${jname}" in
@@ -92,8 +88,9 @@ apply_in_jail_local()
 	fi
 	echo "***"
 
-	${UMOUNT_CMD} ${path}/tmp/cbsdpuppet
-	${UMOUNT_CMD} ${path}/tmp/puppet
+	for _i in ${path}/tmp/cbsdpuppet/modules/public ${path}/usr/local/etc/puppet/modules ${path}/tmp/puppet/etc/puppet ${path}/tmp/cbsdpuppet ${path}${jail_workdir}/puppet_root ${path}/tmp/puppet; do
+		is_mounted ${_i} && ${UMOUNT_CMD} -f ${_i}
+	done
 
 	if [ "${jname}" != "CBSDSYS" ]; then
 		if [ ${_was_started} -eq 0 ]; then
@@ -157,6 +154,11 @@ puppet_setup()
 		if [ -z "${module}" ]; then
 			[ ! -d ${path}${jail_workdir}/puppet_root ] && ${MKDIR_CMD} -p ${path}${jail_workdir}/puppet_root
 			${MOUNT_CMD} -t nullfs -oro ${local_puppet_dir} ${path}${jail_workdir}/puppet_root
+		fi
+
+		if [ -d ${path}${jail_workdir}/puppet_root/modules ]; then
+			${ECHO} "${N1_COLOR}info: jail has own puppet module dir: ${N2_COLOR}${jname}${N0_COLOR}"
+			${MOUNT_CMD} -t nullfs -oro ${path}${jail_workdir}/puppet_root/modules ${path}/tmp/cbsdpuppet/modules/public
 		fi
 
 		if [ "${puppet_apply_method}" != "local" ]; then
