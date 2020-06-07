@@ -93,13 +93,17 @@ echo "Module path: ${modulepath}"
 
 case ${local_puppet} in
 	1)
-		${PUPPET_CMD} apply $@ --show_diff --hiera_config=/tmp/cbsdpuppet/hiera.yaml --modulepath=${modulepath} --log_level=${debug_args} 2>&1
+		${PUPPET_CMD} apply $@ --show_diff --hiera_config=/tmp/cbsdpuppet/hiera.yaml --modulepath=${modulepath} --log_level=${debug_args}
 		;;
 	0)
+#		echo "${DIR}/bin/ruby -I${DIR}/lib/ruby/vendor_ruby -I \
+#		\"${DIR}/lib/ruby/${RUBY_VER}/\" -I \"${DIR}/bin/\" -I \"${RUBY_PLATFORM_DIR}\" \
+#		-I \"${DIR}/lib/ruby/site_ruby/${RUBY_VER}/\" \
+#		${PUPPET_CMD} apply $@ --show_diff --hiera_config=/tmp/cbsdpuppet/hiera.yaml --modulepath=${modulepath} --log_level=${debug_args}"
 		${DIR}/bin/ruby -I${DIR}/lib/ruby/vendor_ruby -I \
 		"${DIR}/lib/ruby/${RUBY_VER}/" -I "${DIR}/bin/" -I "${RUBY_PLATFORM_DIR}" \
 		-I "${DIR}/lib/ruby/site_ruby/${RUBY_VER}/" \
-		${PUPPET_CMD} apply $@ --show_diff --hiera_config=/tmp/cbsdpuppet/hiera.yaml --modulepath=${modulepath} --log_level=${debug_args} 2>&1 
+		${PUPPET_CMD} apply $@ --show_diff --hiera_config=/tmp/cbsdpuppet/hiera.yaml --modulepath=${modulepath} --log_level=${debug_args} > /dev/null
 		;;
 esac
 

@@ -8,9 +8,6 @@ mode= apply - puppet apply\n\
 jname= can CBSDSYS or cbsdpuppet1 for configure current system or just create manifest\n"
 
 . ${subr}
-. ${system}
-. ${tools}
-. ${strings}
 
 debug_form=0
 init $*
@@ -50,7 +47,7 @@ apply_in_jail_remote()
 {
 	mkjhosts file=${data}/etc/hosts ips="${nodeip}" hosts="${certname}" template="Puppet-CBSD-module"
 
-	/bin/cat > ${data}/usr/local/etc/puppet/puppet.conf <<EOF
+	${CAT_CMD} > ${data}/usr/local/etc/puppet/puppet.conf <<EOF
 [agent]
 server = ${certname}
 pluginsync = true
@@ -62,37 +59,37 @@ EOF
 	# check for crt
 	if [ -r /var/puppet/ssl/ca/signed/${host_hostname}.pem -a -r ${data}/var/puppet/ssl/certs/${host_hostname}.pem ]; then
 
-		file -s /var/puppet/ssl/ca/signed/${host_hostname}.pem
-		file -s ${data}/var/puppet/ssl/certs/${host_hostname}.pem
+		${FILE_CMD} -s /var/puppet/ssl/ca/signed/${host_hostname}.pem
+		${FILE_CMD} -s ${data}/var/puppet/ssl/certs/${host_hostname}.pem
 
-		md5_srv=$( /sbin/md5 -qs /var/puppet/ssl/ca/signed/${host_hostname}.pem 2>/dev/null )
-		md5_cl=$( /sbin/md5 -qs ${data}/var/puppet/ssl/certs/${host_hostname}.pem 2>/dev/null )
+		md5_srv=$( ${MD5_CMD} -qs /var/puppet/ssl/ca/signed/${host_hostname}.pem 2>/dev/null )
+		md5_cl=$( ${MD5_CMD} -qs ${data}/var/puppet/ssl/certs/${host_hostname}.pem 2>/dev/null )
 
 		if [ "${md5_srv}" != "${md5_cl}" ]; then
 			echo "Pem diffrence [ ${md5_srv} / ${md5_cl} ], clean-up for re-sign"
 			/usr/local/bin/puppet cert clean ${host_hostname}
-			jexec jname=${jname} find /var/puppet/ssl -name ${host_hostname}.pem -delete
+			jexec jname=${jname} ${FIND_CMD} /var/puppet/ssl -name ${host_hostname}.pem -delete
 		else
 			echo "Pem is equal: ${md5_srv} <=> ${md5_cl}"
 		fi
 	else
 		echo "Prune old certificate"
 		/usr/local/bin/puppet cert clean ${host_hostname}
-		jexec jname=${jname} find /var/puppet/ssl -name ${host_hostname}.pem -delete
+		jexec jname=${jname} ${FIND_CMD} /var/puppet/ssl -name ${host_hostname}.pem -delete
 	fi
 
 	jexec jname=${jname} env LANG=en_US.UTF-8 /usr/local/bin/puppet agent -t
 
 	echo "***"
 
-	/sbin/umount ${path}/usr/local/etc/puppet/modules
-	/sbin/umount ${path}/tmp/puppet/etc/puppet
-	/sbin/umount ${path}/tmp/puppet
+	${UMOUNT_CMD} ${path}/usr/local/etc/puppet/modules
+	${UMOUNT_CMD} ${path}/tmp/puppet/etc/puppet
+	${UMOUNT_CMD} ${path}/tmp/puppet
 	if [ ${_was_started} -eq 0 ]; then
 		jstop jname=${jname}
 		jcleanup jname=${jname}
 	else
-		[ -n "${have_restart}" ] && jexec jname=$jname ${have_restart}
+		[ -n "${have_restart}" ] && jexec jname=${jname} ${have_restart}
 	fi
 }
 
@@ -128,8 +125,8 @@ apply_in_jail_local()
 	fi
 	echo "***"
 
-	/sbin/umount ${path}/tmp/cbsdpuppet
-	/sbin/umount ${path}/tmp/puppet
+	${UMOUNT_CMD} ${path}/tmp/cbsdpuppet
+	${UMOUNT_CMD} ${path}/tmp/puppet
 
 	if [ "${jname}" != "CBSDSYS" ]; then
 		if [ ${_was_started} -eq 0 ]; then
@@ -168,7 +165,7 @@ puppet_setup()
 						_was_started=0
 						;;
 					*)
-						err 1 "${EMULATOR}VM is not running: ${GREEN}${jname}${NORMAL}"
+						err 1 "${EMULATOR} VM is not running: ${GREEN}${jname}${NORMAL}"
 						;;
 				esac
 			else
@@ -182,14 +179,14 @@ puppet_setup()
 	if [ "${emulator}" = "jail" ]; then
 
 		for i in ${path}/tmp/cbsdpuppet ${path}/tmp/puppet; do
-			[ ! -d ${i} ] && /bin/mkdir -p ${i}
+			[ ! -d ${i} ] && ${MKDIR_CMD} -p ${i}
 		done
 
-		mount_nullfs -oro /usr/local/cbsd/modules/puppet.d ${path}/tmp/cbsdpuppet
-		mount_nullfs -oro ${workdir}/jails-data/cbsdpuppet1-data/usr/local ${path}/tmp/puppet
+		${MOUNT_CMD} -t nullfs -oro /usr/local/cbsd/modules/puppet.d ${path}/tmp/cbsdpuppet
+		${MOUNT_CMD} -t nullfs -oro ${workdir}/jails-data/cbsdpuppet1-data/usr/local ${path}/tmp/puppet
 
 		#[ $? -ne 0 ] && err 1 "Error mount ${distmoduledir}/puppet.d/puppet_root/modules to /usr/local/etc/puppet/modules inside jail"
-		#[ ! -d ${path}/tmp/cbsd ] && /bin/mkdir -p ${path}/tmp/cbsd
+		#[ ! -d ${path}/tmp/cbsd ] && ${MKDIR_CMD} -p ${path}/tmp/cbsd
 
 		if [ "${puppet_apply_method}" != "local" ]; then
 			if [ ! -x ${data}/usr/local/bin/puppet ]; then
@@ -198,14 +195,15 @@ puppet_setup()
 		fi
 	fi
 
+	pkg mode=bootstrap jname=${jname}
+
 	case "${puppet_apply_method}" in
 		local)
-			[ "${jname}" != "cbsdpuppet1" -a "${jname}" != "CBSDSYS" ] && pkg mode=bootstrap jname=${jname}
-			[ ! -d ${path}/tmp/cbsd/manifest ] && /bin/mkdir -p ${path}/tmp/cbsd/manifest
-			[ ! -d ${path}/tmp/cbsd/hieradata ] && /bin/mkdir -p ${path}/tmp/cbsd/hieradata
+			[ ! -d ${path}/tmp/cbsd/manifest ] && ${MKDIR_CMD} -p ${path}/tmp/cbsd/manifest
+			[ ! -d ${path}/tmp/cbsd/hieradata ] && ${MKDIR_CMD} -p ${path}/tmp/cbsd/hieradata
 			jail_manifest="${path}/tmp/cbsd/manifest/init.pp"
 			jail_hieradata="${path}/tmp/cbsd/hieradata/common.yaml"
-/bin/cat > ${path}/tmp/cbsd/hiera.yaml <<EOF
+${CAT_CMD} > ${path}/tmp/cbsd/hiera.yaml <<EOF
 ---
 version: 5
 defaults:
@@ -228,31 +226,33 @@ EOF
 			;;
 	esac
 
-	echo "Generate manifest"
+	${ECHO} "${N1_COLOR}generate manifest and save to: ${N2_COLOR}${local_puppet_manifest_dir}/${module}.pp${N0_COLOR}"
 	generate_manifest > ${jail_manifest}
-	echo "Generate hieradata"
+	${CP_CMD} ${jail_manifest} ${local_puppet_manifest_dir}/${module}.pp
+	${ECHO} "${N1_COLOR}generate hieradata and save to: ${N2_COLOR}${local_puppet_hieradata_dir}/${module}.yaml${N0_COLOR}"
 	generate_hieradata > ${jail_hieradata}
+	${CP_CMD} ${jail_hieradata} ${local_puppet_hieradata_dir}/${module}.yaml
 
-	#[ "${emulator}" = "jail" ] && /bin/cp -a ${local_puppet_manifest_dir}/${module}.pp ${path}/tmp/cbsd/${helpername}.pp
+	#[ "${emulator}" = "jail" ] && ${CP_CMD} -a ${local_puppet_manifest_dir}/${module}.pp ${path}/tmp/cbsd/${helpername}.pp
 
 	if [ "${puppet_apply_method}" = "remote" ]; then
 		if [ -d /usr/local/etc/puppet/environments/production/manifests ]; then
 			echo "Copy manifest to /usr/local/etc/puppet/environments/production/manifests/${host_hostname}.pp"
 			echo "node \"${host_hostname}\" {" > /usr/local/etc/puppet/environments/production/manifests/${host_hostname}.pp
-	#		/bin/cp ${local_puppet_manifest_dir}/${module}.pp /usr/local/etc/puppet/environments/production/manifests/${host_hostname}.pp
-			/bin/cat ${local_puppet_manifest_dir}/${module}.pp  >> /usr/local/etc/puppet/environments/production/manifests/${host_hostname}.pp
+	#		${CP_CMD} ${local_puppet_manifest_dir}/${module}.pp /usr/local/etc/puppet/environments/production/manifests/${host_hostname}.pp
+			${CAT_CMD} ${local_puppet_manifest_dir}/${module}.pp  >> /usr/local/etc/puppet/environments/production/manifests/${host_hostname}.pp
 			echo "}" >> /usr/local/etc/puppet/environments/production/manifests/${host_hostname}.pp
 		else
 			echo "no /usr/local/etc/puppet/environments/production/manifests, skip for coping manifest"
 		fi
 
-		#[ "${emulator}" = "jail" ] && /bin/cp -a ${local_puppet_hieradata_dir}/${module}.yaml ${path}/tmp/cbsd/common.yaml
+		#[ "${emulator}" = "jail" ] && ${CP_CMD} -a ${local_puppet_hieradata_dir}/${module}.yaml ${path}/tmp/cbsd/common.yaml
 
 		if [ -d /usr/local/etc/puppet/hieradata/production ]; then
-	#		[ ! -d /usr/local/etc/puppet/hieradata/production/${helpername} ] && /bin/mkdir -p /usr/local/etc/puppet/hieradata/production/${helpername}
-			[ ! -d /usr/local/etc/puppet/hieradata/production/node ] && /bin/mkdir -p /usr/local/etc/puppet/hieradata/production/node
+	#		[ ! -d /usr/local/etc/puppet/hieradata/production/${helpername} ] && ${MKDIR_CMD} -p /usr/local/etc/puppet/hieradata/production/${helpername}
+			[ ! -d /usr/local/etc/puppet/hieradata/production/node ] && ${MKDIR_CMD} -p /usr/local/etc/puppet/hieradata/production/node
 			echo "Copy hiera to /usr/local/etc/puppet/hieradata/production/node/"
-			/bin/cp ${local_puppet_hieradata_dir}/${module}.yaml /usr/local/etc/puppet/hieradata/production/node/${host_hostname}.yaml
+			${CP_CMD} ${local_puppet_hieradata_dir}/${module}.yaml /usr/local/etc/puppet/hieradata/production/node/${host_hostname}.yaml
 		else
 			echo "no /usr/local/etc/puppet/hieradata/production, skip for coping hiera"
 		fi
@@ -271,8 +271,8 @@ local_puppet_dir="${jailsysdir}/${jname}/puppet"
 local_puppet_manifest_dir="${local_puppet_dir}/manifest"
 local_puppet_hieradata_dir="${local_puppet_dir}/hieradata"
 
-[ ! -d ${local_puppet_manifest_dir} ] && /bin/mkdir -p ${local_puppet_manifest_dir}
-[ ! -d ${local_puppet_hieradata_dir} ] && /bin/mkdir -p ${local_puppet_hieradata_dir}
+[ ! -d ${local_puppet_manifest_dir} ] && ${MKDIR_CMD} -p ${local_puppet_manifest_dir}
+[ ! -d ${local_puppet_hieradata_dir} ] && ${MKDIR_CMD} -p ${local_puppet_hieradata_dir}
 
 # We check that we all have to be used helpers
 #case "${helper_module}" in
@@ -284,7 +284,7 @@ local_puppet_hieradata_dir="${local_puppet_dir}/hieradata"
 
 case "${mode}" in
 	"apply")
-		${ECHO} "${MAGENTA}Applying puppet manifest for: ${GREEN}${module}${NORMAL}"
+		${ECHO} "${MAGENTA}applying puppet manifest for: ${GREEN}${module}${NORMAL}"
 
 		readconf puppetd.conf
 		[ -z "${puppet_apply_method}" ] && puppet_apply_method="local"
