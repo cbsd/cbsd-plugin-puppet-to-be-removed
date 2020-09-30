@@ -153,6 +153,7 @@ class postgresql::globals (
   $default_version = $::osfamily ? {
     /^(RedHat|Linux)/ => $::operatingsystem ? {
       'Fedora' => $::operatingsystemrelease ? {
+        /^(32)$/       => '12',
         /^(31)$/       => '11.6',
         /^(30)$/       => '11.2',
         /^(29)$/       => '10.6',
@@ -191,6 +192,7 @@ class postgresql::globals (
         /^(16.04|16.10)$/ => '9.5',
         /^(17.04|17.10)$/ => '9.6',
         /^(18.04)$/ => '10',
+        /^(20.04)$/ => '12',
         default => undef,
       },
       default => undef,
