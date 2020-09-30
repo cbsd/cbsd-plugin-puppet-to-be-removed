@@ -2073,6 +2073,9 @@ Puppet::Type.newtype(:firewall) do
       String matching feature. Matches the package against the hex pattern
       given as an argument.
     PUPPETCODE
+    munge do |value|
+      _value = value.delete(' ')
+    end
   end
 
   newproperty(:string_algo, required_features: :string_matching) do
@@ -2238,6 +2241,15 @@ Puppet::Type.newtype(:firewall) do
     desc <<-PUPPETCODE
       Matches against the net_cls cgroup ID of the packet.
     PUPPETCODE
+  end
+
+  newproperty(:notrack, required_features: :ct_target) do
+    # use this parameter with latest version of iptables
+    desc <<-PUPPETCODE
+     Invoke the disable connection tracking for this packet.
+     This parameter can be used with iptables version >= 1.8.3
+    PUPPETCODE
+    newvalues(:true, :false)
   end
 
   autorequire(:firewallchain) do
@@ -2461,6 +2473,12 @@ Puppet::Type.newtype(:firewall) do
     if value(:helper)
       unless value(:jump).to_s == 'CT'
         raise 'Parameter helper requires jump => CT'
+      end
+    end
+
+    if value(:notrack)
+      unless value(:jump).to_s == 'CT'
+        raise 'Parameter notrack requires jump => CT'
       end
     end
 

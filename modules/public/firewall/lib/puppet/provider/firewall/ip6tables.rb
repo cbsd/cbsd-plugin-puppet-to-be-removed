@@ -22,6 +22,10 @@ Puppet::Type.type(:firewall).provide :ip6tables, parent: :iptables, source: :ip6
   has_feature :log_ip_options
   has_feature :mark
   has_feature :mss
+  has_feature :nflog_group
+  has_feature :nflog_prefix
+  has_feature :nflog_range
+  has_feature :nflog_threshold
   has_feature :tcp_flags
   has_feature :pkttype
   has_feature :ishasmorefrags
@@ -125,6 +129,10 @@ Puppet::Type.type(:firewall).provide :ip6tables, parent: :iptables, source: :ip6
     name: '-m comment --comment',
     mac_source: ['-m mac --mac-source', '--mac-source'],
     mss: '-m tcpmss --mss',
+    nflog_group: '--nflog-group',
+    nflog_prefix: '--nflog-prefix',
+    nflog_range: '--nflog-range',
+    nflog_threshold: '--nflog-threshold',
     outiface: '-o',
     pkttype: '-m pkttype --pkt-type',
     port: '-m multiport --ports',
@@ -156,6 +164,7 @@ Puppet::Type.type(:firewall).provide :ip6tables, parent: :iptables, source: :ip6
     stat_probability: '--probability',
     state: '-m state --state',
     string: '-m string --string',
+    string_hex: '-m string --hex-string',
     string_algo: '--algo',
     string_from: '--from',
     string_to: '--to',
@@ -194,6 +203,7 @@ Puppet::Type.type(:firewall).provide :ip6tables, parent: :iptables, source: :ip6
     bytecode: '-m bpf --bytecode',
     zone: '--zone',
     helper: '--helper',
+    notrack: '--notrack',
   }
 
   # These are known booleans that do not take a value, but we want to munge
@@ -220,6 +230,7 @@ Puppet::Type.type(:firewall).provide :ip6tables, parent: :iptables, source: :ip6
     :time_contiguous,
     :kernel_timezone,
     :queue_bypass,
+    :notrack,
   ]
 
   # Properties that use "-m <ipt module name>" (with the potential to have multiple
@@ -290,12 +301,12 @@ Puppet::Type.type(:firewall).provide :ip6tables, parent: :iptables, source: :ip6
                     :ctstate, :ctproto, :ctorigsrc, :ctorigdst, :ctreplsrc, :ctrepldst,
                     :ctorigsrcport, :ctorigdstport, :ctreplsrcport, :ctrepldstport, :ctstatus, :ctexpire, :ctdir,
                     :icmp, :hop_limit, :limit, :burst, :length, :recent, :rseconds, :reap,
-                    :rhitcount, :rttl, :rname, :mask, :rsource, :rdest, :ipset, :string, :string_algo,
-                    :string_from, :string_to, :jump, :clamp_mss_to_pmtu, :gateway, :todest,
+                    :rhitcount, :rttl, :rname, :mask, :rsource, :rdest, :ipset, :string, :string_hex, :string_algo,
+                    :string_from, :string_to, :jump, :nflog_group, :nflog_prefix, :nflog_range, :nflog_threshold, :clamp_mss_to_pmtu, :gateway, :todest,
                     :tosource, :toports, :checksum_fill, :log_level, :log_prefix, :log_uid, :log_tcp_sequence, :log_tcp_options, :log_ip_options,
                     :reject, :set_mss, :set_dscp, :set_dscp_class, :mss, :queue_num, :queue_bypass,
                     :set_mark, :match_mark, :connlimit_above, :connlimit_mask, :connmark, :time_start, :time_stop, :month_days, :week_days, :date_start, :date_stop, :time_contiguous, :kernel_timezone,
                     :src_cc, :dst_cc, :hashlimit_upto, :hashlimit_above, :hashlimit_name, :hashlimit_burst,
                     :hashlimit_mode, :hashlimit_srcmask, :hashlimit_dstmask, :hashlimit_htable_size,
-                    :hashlimit_htable_max, :hashlimit_htable_expire, :hashlimit_htable_gcinterval, :bytecode, :zone, :helper, :rpfilter, :name]
+                    :hashlimit_htable_max, :hashlimit_htable_expire, :hashlimit_htable_gcinterval, :bytecode, :zone, :helper, :rpfilter, :name, :notrack]
 end

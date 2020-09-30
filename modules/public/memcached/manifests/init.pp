@@ -33,6 +33,11 @@ class memcached (
   Boolean $service_restart                                                                   = true,
   Boolean $auto_removal                                                                      = false,
   Boolean $use_sasl                                                                          = false,
+  Boolean $use_tls                                                                           = false,
+  Optional[Stdlib::Absolutepath] $tls_cert_chain                                             = undef,
+  Optional[Stdlib::Absolutepath] $tls_key                                                    = undef,
+  Optional[Stdlib::Absolutepath] $tls_ca_cert                                                = undef,
+  Optional[Integer] $tls_verify_mode                                                         = 1,
   Boolean $use_registry                                                                      = $::memcached::params::use_registry,
   String $registry_key                                                                       = 'HKLM\System\CurrentControlSet\services\memcached\ImagePath',
   Boolean $large_mem_pages                                                                   = false,
@@ -48,6 +53,12 @@ class memcached (
   # Fail if both options are defined
   if $syslog and str2bool($logfile) {
     fail 'Define either syslog or logfile as logging destinations but not both.'
+  }
+
+  if $use_tls {
+    if $tls_cert_chain == undef or $tls_key == undef {
+      fail 'tls_cert_chain and tls_key should be set when use_tls is true.'
+    }
   }
 
   if $package_ensure == 'absent' {
