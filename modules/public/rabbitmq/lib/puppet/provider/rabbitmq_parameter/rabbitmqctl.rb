@@ -1,84 +1,74 @@
 require 'json'
 require 'puppet/util/package'
 
-require File.expand_path(File.join(File.dirname(__FILE__), '..', 'rabbitmqctl'))
-Puppet::Type.type(:rabbitmq_parameter).provide(:rabbitmqctl, :parent => Puppet::Provider::Rabbitmqctl) do
+require File.expand_path(File.join(File.dirname(__FILE__), '..', 'rabbitmq_cli'))
+Puppet::Type.type(:rabbitmq_parameter).provide(:rabbitmqctl, parent: Puppet::Provider::RabbitmqCli) do
+  confine feature: :posix
 
-  defaultfor :feature => :posix
+  mk_resource_methods
 
-  # cache parameters
-  def self.parameters(name, vhost)
-    @parameters = {} unless @parameters
-    unless @parameters[vhost]
-      @parameters[vhost] = {}
-      self.run_with_retries {
-        rabbitmqctl('list_parameters', '-q', '-p', vhost)
-      }.split(/\n/).each do |line|
-        if line =~ /^(\S+)\s+(\S+)\s+(\S+)$/
-          @parameters[vhost][$2] = {
-            :component_name    => $1,
-            :value => JSON.parse($3),
-          }
-        else
-          raise Puppet::Error, "cannot parse line from list_parameter:#{line}"
-        end
+  def initialize(value = {})
+    super(value)
+    @property_flush = {}
+  end
+
+  def self.all_vhosts
+    rabbitmqctl_list('vhosts').split(%r{\n})
+  end
+
+  def self.all_parameters(vhost)
+    rabbitmqctl_list('parameters', '-p', vhost).split(%r{\n})
+  end
+
+  def self.instances
+    resources = []
+    all_vhosts.each do |vhost|
+      all_parameters(vhost).map do |line|
+        raise Puppet::Error, "cannot parse line from list_parameter:#{line}" unless line =~ %r{^(\S+)\s+(\S+)\s+(\S+)$}
+        parameter = {
+          ensure: :present,
+          component_name: Regexp.last_match(1),
+          name: format('%s@%s', Regexp.last_match(2), vhost),
+          value: JSON.parse(Regexp.last_match(3))
+        }
+        resources << new(parameter)
       end
     end
-    @parameters[vhost][name]
+    resources
   end
 
-  def parameters(name, vhost)
-    self.class.parameters(vhost, name)
+  def self.prefetch(resources)
+    packages = instances
+    resources.keys.each do |name|
+      Puppet.info "Calling prefetch: #{name}"
+      if (provider = packages.find { |pkg| pkg.name == name })
+        resources[name].provider = provider
+      end
+    end
   end
 
-  def should_parameter
-    @should_parameter ||= resource[:name].rpartition('@').first
-  end
-
-  def should_vhost
-    @should_vhost ||= resource[:name].rpartition('@').last
+  def exists?
+    @property_hash[:ensure] == :present
   end
 
   def create
+    @property_flush[:ensure] = :present
     set_parameter
   end
 
   def destroy
-    rabbitmqctl('clear_parameter', '-p', should_vhost, 'shovel', should_parameter)
-  end
-
-  def exists?
-    parameters(should_vhost, should_parameter)
-  end
-
-  def component_name
-    parameters(should_vhost, should_parameter)[:component_name]
-  end
-
-  def component_name=(component_name)
-    set_parameter
-  end
-
-  def value
-    parameters(should_vhost, should_parameter)[:value]
-  end
-
-  def value=(value)
+    @property_flush[:ensure] = :absent
     set_parameter
   end
 
   def set_parameter
-    unless @set_parameter
-      @set_parameter = true
-      resource[:value] ||= value
-      resource[:component_name]    ||= component_name
-      rabbitmqctl('set_parameter',
-        '-p', should_vhost,
-        resource[:component_name],
-        should_parameter,
-        resource[:value].to_json
-      )
+    vhost = resource[:name].rpartition('@').last
+    key = resource[:name].rpartition('@').first
+
+    if @property_flush[:ensure] == :absent
+      rabbitmqctl('clear_parameter', '-p', vhost, resource[:component_name], key)
+    else
+      rabbitmqctl('set_parameter', '-p', vhost, resource[:component_name], key, resource[:value].to_json)
     end
   end
-
 end

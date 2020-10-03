@@ -1,54 +1,27 @@
-RSpec.shared_context "default facts" do
-  let(:facts) { { :puppetversion => Puppet.version, } }
-end
+add_custom_fact :rabbitmq_version, '3.6.1'                              # puppet-rabbitmq
+add_custom_fact :erl_ssl_path, '/usr/lib64/erlang/lib/ssl-7.3.3.1/ebin' # puppet-rabbitmq
 
-RSpec.configure do |rspec|
-  rspec.include_context "default facts"
-end
-
-def with_debian_facts
-  let :facts do
-    super().merge({
-      :lsbdistcodename  => 'squeeze',
-      :lsbdistid        => 'Debian',
-      :osfamily         => 'Debian',
-      :staging_http_get => '',
-    })
-  end
-end
-
-def with_openbsd_facts
-  # operatingsystemmajrelease is too broad
-  # operatingsystemrelease may contain X.X-current
-  # or other prefixes
-  let :facts do
-    super().merge({
-      :kernelversion             => '5.9',
-      :osfamily                  => 'OpenBSD',
-      :staging_http_get          => '',
-    })
-  end
-end
-
-def with_freebsd_facts
-  # operatingsystemmajrelease is too broad
-  # operatingsystemrelease may contain X.X-current
-  # or other prefixes
-  let :facts do
-    super().merge({
-      :kernelversion             => '12',
-      :osfamily                  => 'FreeBSD',
-      :staging_http_get          => '',
-    })
-  end
-end
-
-def with_redhat_facts
-  let :facts do
-    super().merge({
-      :operatingsystemmajrelease => '7',
-      :osfamily                  => 'Redhat',
-      :staging_http_get          => '',
-    })
+def os_specific_facts(facts)
+  case facts[:os]['family']
+  when 'Archlinux'
+    { service_provider: 'systemd', systemd: true }
+  when 'Debian'
+    case facts[:os]['release']['major']
+    when '7'
+      { service_provider: 'sysv', systemd: false }
+    when '14.04'
+      { service_provider: 'upstart', systemd: false }
+    else
+      { service_provider: 'systemd', systemd: true }
+    end
+  when 'RedHat'
+    case facts[:os]['release']['major']
+    when '6'
+      { service_provider: 'sysv', systemd: false }
+    else
+      { service_provider: 'systemd', systemd: true }
+    end
+  else
+    { service_provider: 'systemd', systemd: true }
   end
 end
