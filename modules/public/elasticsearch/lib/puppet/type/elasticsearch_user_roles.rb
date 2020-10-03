@@ -1,10 +1,7 @@
 Puppet::Type.newtype(:elasticsearch_user_roles) do
-  desc "Type to model Elasticsearch user roles."
+  desc 'Type to model Elasticsearch user roles.'
 
-  ensurable do
-    defaultvalues
-    defaultto :present
-  end
+  ensurable
 
   newparam(:name, :namevar => true) do
     desc 'User name.'
@@ -12,7 +9,7 @@ Puppet::Type.newtype(:elasticsearch_user_roles) do
 
   newproperty(:roles, :array_matching => :all) do
     desc 'Array of roles that the user should belong to.'
-    def insync? is
+    def insync?(is)
       is.sort == should.sort
     end
   end

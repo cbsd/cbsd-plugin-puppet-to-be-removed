@@ -1,4 +1,4 @@
-$LOAD_PATH.unshift(File.join(File.dirname(__FILE__),"..","..","..",".."))
+$LOAD_PATH.unshift(File.join(File.dirname(__FILE__), '..', '..', '..'))
 
 require 'pathname'
 require 'puppet/util/filetype'
@@ -12,7 +12,7 @@ Puppet::Type.type(:elasticsearch_service_file).provide(:ruby) do
 
   mk_resource_methods
 
-  def initialize(value={})
+  def initialize(value = {})
     super(value)
     @property_flush = {}
   end
@@ -44,7 +44,7 @@ Puppet::Type.type(:elasticsearch_service_file).provide(:ruby) do
 
   def self.prefetch(resources)
     instances.each do |prov|
-      if resource = resources[prov.name]
+      if (resource = resources[prov.name])
         resource.provider = prov
       end
     end
@@ -62,12 +62,23 @@ Puppet::Type.type(:elasticsearch_service_file).provide(:ruby) do
     @property_flush[:ensure] = :absent
   end
 
-
   def flush
-    opt_flag, opt_flags = Puppet_X::Elastic::EsVersioning.opt_flags(
-      resource[:package_name], resource.catalog
-    )
-    template = ERB.new(resource[:content], 0, "-")
+    begin
+      opt_flag, opt_flags = Puppet_X::Elastic::EsVersioning.opt_flags(
+        resource[:package_name], resource.catalog
+      )
+    rescue ElasticsearchPackageNotFoundError
+      # If the Elasticsearch package is not present at all, we don't know what
+      # version is present, so we just set these as empty values for the
+      # template.
+      opt_flag = ''
+      opt_flags = []
+    end
+
+    # This should only be present on systemd systems.
+    opt_flags.delete('--quiet') unless resource[:name].include?('systemd')
+
+    template = ERB.new(resource[:content], 0, '-')
     result = template.result(binding)
 
     Puppet::Util::FileType.filetype(:flat).new(resource[:name]).write(result)
@@ -76,5 +87,4 @@ Puppet::Type.type(:elasticsearch_service_file).provide(:ruby) do
       t[:name] == resource[:name]
     end
   end
-
 end # of .provide

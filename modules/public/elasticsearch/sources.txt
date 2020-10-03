@@ -1,2 +1,2 @@
-git@github.com:olevole/puppet-elasticsearch.git
+git@github.com:olevole/puppet-elasticsearch-old.git
 

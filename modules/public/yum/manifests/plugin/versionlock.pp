@@ -1,20 +1,44 @@
-# = Class yum::plugin::versionlock
+# Class: yum::plugin::versionlock
 #
+# This class installs versionlock plugin
+#
+# Parameters:
+#   [*ensure*] - specifies if versionlock should be present or absent
+#   [*clean*] - specifies if yum clean all should be called after edits. Defaults false.
+#
+# Actions:
+#
+# Requires:
+#
+# Sample usage:
+#   include yum::plugin::versionlock
 #
 class yum::plugin::versionlock (
-  $ensure = present,
-  $path   = '/etc/yum/pluginconf.d/versionlock.list',
+  Enum['present', 'absent'] $ensure = 'present',
+  String                    $path   = '/etc/yum/pluginconf.d/versionlock.list',
+  Boolean                   $clean  = false,
 ) {
 
-  package { 'yum-plugin-versionlock':
-    ensure => $ensure,
+  yum::plugin { 'versionlock':
+    ensure  => $ensure,
   }
 
-  file { 'yum.versionlock.list':
-    ensure => $ensure,
-    path   => $path,
+  include yum::clean
+  $_clean_notify = $clean ? {
+    true  => Exec['yum_clean_all'],
+    false => undef,
+  }
+
+  concat { $path:
+    mode   => '0644',
     owner  => 'root',
     group  => 'root',
-    mode   => '0644',
+    notify => $_clean_notify,
+  }
+
+  concat::fragment { 'versionlock_header':
+    target  => $path,
+    content => "# File managed by puppet\n",
+    order   => '01',
   }
 }

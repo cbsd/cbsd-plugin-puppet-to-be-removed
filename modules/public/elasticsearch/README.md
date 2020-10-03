@@ -1,6 +1,6 @@
 # Elasticsearch Puppet Module
 
-[![Puppet Forge endorsed](https://img.shields.io/puppetforge/e/elasticsearch/elasticsearch.svg)](https://forge.puppetlabs.com/elasticsearch/elasticsearch)
+[![Puppet Forge endorsed](https://img.shields.io/puppetforge/e/elastic/elasticsearch.svg)](https://forge.puppetlabs.com/elastic/elasticsearch)
 [![Puppet Forge Version](https://img.shields.io/puppetforge/v/elastic/elasticsearch.svg)](https://forge.puppetlabs.com/elastic/elasticsearch)
 [![Puppet Forge Downloads](https://img.shields.io/puppetforge/dt/elastic/elasticsearch.svg)](https://forge.puppetlabs.com/elastic/elasticsearch)
 
@@ -21,7 +21,7 @@
 
 This module sets up [Elasticsearch](https://www.elastic.co/overview/elasticsearch/) instances with additional resource for plugins, templates, and more.
 
-This module is actively tested against Elasticsearch 2.x and 5.x.
+This module is actively tested against Elasticsearch 2.x, 5.x, and 6.x.
 
 ## Setup
 
@@ -32,44 +32,44 @@ This module is actively tested against Elasticsearch 2.x and 5.x.
 * Elasticsearch configuration file.
 * Elasticsearch service.
 * Elasticsearch plugins.
+* Elasticsearch snapshot repositories.
 * Elasticsearch templates.
 * Elasticsearch ingest pipelines.
 * Elasticsearch index settings.
 * Elasticsearch Shield/X-Pack users, roles, and certificates.
+* Elasticsearch licenses.
+* Elasticsearch keystores.
 
 ### Requirements
 
 * The [stdlib](https://forge.puppetlabs.com/puppetlabs/stdlib) Puppet library.
-* [puppet/yum](https://forge.puppetlabs.com/puppet/yum) For yum version lock.
 * [richardc/datacat](https://forge.puppetlabs.com/richardc/datacat)
 * [Augeas](http://augeas.net/)
-* [puppetlabs-java](https://forge.puppetlabs.com/puppetlabs/java) for Java installation (optional).
 * [puppetlabs-java_ks](https://forge.puppetlabs.com/puppetlabs/java_ks) for Shield/X-Pack certificate management (optional).
+
+In addition, remember that Elasticsearch requires Java to be installed.
+We recommend managing your Java installation with the [puppetlabs-java](https://forge.puppetlabs.com/puppetlabs/java) module.
 
 #### Repository management
 
 When using the repository management, the following module dependencies are required:
 
-* Debian/Ubuntu: [Puppetlabs/apt](http://forge.puppetlabs.com/puppetlabs/apt)
-* OpenSuSE/SLES: [Darin/zypprepo](https://forge.puppetlabs.com/darin/zypprepo)
+* General: [Elastic/elastic_stack](https://forge.puppet.com/elastic/elastic_stack)
+* Debian/Ubuntu: [Puppetlabs/apt](https://forge.puppetlabs.com/puppetlabs/apt)
+* OpenSuSE/SLES: [puppet/zypprepo](https://forge.puppetlabs.com/puppet/zypprepo)
 
 ### Beginning with Elasticsearch
 
 Declare the top-level `elasticsearch` class (managing repositories) and set up an instance:
 
 ```puppet
-class { 'elasticsearch':
-  java_install => true,
-  manage_repo  => true,
-  repo_version => '5.x',
-}
+include ::java
 
+class { 'elasticsearch': }
 elasticsearch::instance { 'es-01': }
 ```
 
-**Note**: Elasticsearch 5.x requires a recent version of the JVM.
-If you are on a recent version of your distribution of choice (such as Ubuntu 16.04 or CentOS 7), setting `java_install => true` will work out-of-the-box.
-If you are on an earlier distribution, you may need to take additional measures to install Java 1.8.
+**Note**: Elasticsearch 6.x requires a recent version of the JVM.
 
 ## Usage
 
@@ -82,7 +82,7 @@ The following are some parameters that may be useful to override:
 
 ```puppet
 class { 'elasticsearch':
-  version => '1.4.2'
+  version => '6.0.0'
 }
 ```
 
@@ -146,6 +146,33 @@ class { 'elasticsearch':
 
 Each of these can be set at the top-level `elasticsearch` class and inherited for each resource or overridden on a per-resource basis.
 
+#### Dynamically Created Resources
+
+This module supports managing all of its defined types through top-level parameters to better support Hiera and Puppet Enterprise.
+For example, to manage an instance and index template directly from the `elasticsearch` class:
+
+```puppet
+class { 'elasticsearch':
+  instances => {
+    'es-01' => {
+      'config' => {
+        'network.host' => '0.0.0.0'
+      }
+    }
+  },
+  templates => {
+    'logstash' => {
+      'content' => {
+        'template' => 'logstash-*',
+        'settings' => {
+          'number_of_replicas' => 0
+        }
+      }
+    }
+  }
+}
+```
+
 ### Instances
 
 This module works with the concept of instances. For service to start you need to specify at least one instance.
@@ -180,7 +207,7 @@ Note that `module_dir` is where the plugin will install itself to and must match
 #### From an official repository
 
 ```puppet
-elasticsearch::plugin { 'lmenezes/elasticsearch-kopf':
+elasticsearch::plugin { 'x-pack':
   instances => 'instance_name'
 }
 ```
@@ -229,7 +256,7 @@ elasticsearch::plugin { 'elasticsearch/elasticsearch-cloud-aws/2.4.1': }
 
 Please note that this does not work when you specify 'latest' as a version number.
 
-#### ES 2.x official plugins
+#### ES 2.x, 5.x, and 6.x official plugins
 For the Elasticsearch commercial plugins you can refer them to the simple name.
 
 See [Plugin installation](https://www.elastic.co/guide/en/elasticsearch/plugins/current/installation.html) for more details.
@@ -243,6 +270,16 @@ These scripts are shared across all defined instances on the same host.
 elasticsearch::script { 'myscript':
   ensure => 'present',
   source => 'puppet:///path/to/my/script.groovy'
+}
+```
+
+Script directories can also be recursively managed for large collections of scripts:
+
+```puppet
+elasticsearch::script { 'myscripts_dir':
+  ensure  => 'directory,
+  source  => 'puppet:///path/to/myscripts_dir'
+  recurse => 'remote',
 }
 ```
 
@@ -372,20 +409,33 @@ elasticsearch::index { 'foo':
 }
 ```
 
-### Bindings/Clients
+### Snapshot Repositories
 
-Install a variety of [clients/bindings](http://www.elasticsearch.org/guide/en/elasticsearch/client/community/current/clients.html):
-
-#### Python
+By default snapshot_repositories use the top-level `elasticsearch::api_*` settings to communicate with Elasticsearch.
+The following is an example of how to override these settings:
 
 ```puppet
-elasticsearch::python { 'rawes': }
+elasticsearch::snapshot_repository { 'backups':
+  api_protocol            => 'https',
+  api_host                => $::ipaddress,
+  api_port                => 9201,
+  api_timeout             => 60,
+  api_basic_auth_username => 'admin',
+  api_basic_auth_password => 'adminpassword',
+  api_ca_file             => '/etc/ssl/certs',
+  api_ca_path             => '/etc/pki/certs',
+  validate_tls            => false,
+  location                => '/backups',
+}
 ```
 
-#### Ruby
+#### Delete a snapshot repository
 
 ```puppet
-elasticsearch::ruby { 'elasticsearch': }
+elasticsearch::snapshot_repository { 'backups':
+  ensure   => 'absent',
+  location => '/backup'
+}
 ```
 
 ### Connection Validator
@@ -413,22 +463,41 @@ There are two different ways of installing Elasticsearch:
 
 #### Repository
 
-This option allows you to use an existing repository for package installation.
-The `repo_version` corresponds with the `major.minor` version of Elasticsearch for versions before 2.x.
+
+##### Choosing an Elasticsearch major version
+
+This module uses the `elastic/elastic_stack` module to manage package repositories. Because there is a separate repository for each major version of the Elastic stack, selecting which version to configure is necessary to change the default repository value, like this:
+
 
 ```puppet
+class { 'elastic_stack::repo':
+  version => 5,
+}
+
 class { 'elasticsearch':
-  manage_repo  => true,
-  repo_version => '1.4',
+  version => '5.6.4',
 }
 ```
 
-For 2.x versions of Elasticsearch, use `repo_version => '2.x'`.
+This module defaults to the upstream package repositories, which as of Elasticsearch 6.3, includes X-Pack. In order to use the purely OSS (open source) package and repository, the appropriate `oss` flag must be set on the `elastic_stack::repo` and `elasticsearch` classes:
+
+```puppet
+class { 'elastic_stack::repo':
+  oss => true,
+}
+
+class { 'elasticsearch':
+  oss => true,
+}
+```
+
+##### Manual repository management
+
+You may want to manage repositories manually. You can disable automatic repository management like this:
 
 ```puppet
 class { 'elasticsearch':
-  manage_repo  => true,
-  repo_version => '2.x',
+  manage_repo => false,
 }
 ```
 
@@ -466,30 +535,23 @@ class { 'elasticsearch':
 }
 ```
 
-### Java installation
-
-Most sites will manage Java separately; however, this module can attempt to install Java as well.
-This is done by using the [puppetlabs-java](https://forge.puppetlabs.com/puppetlabs/java) module.
-
-```puppet
-class { 'elasticsearch':
-  java_install => true
-}
-```
-
-Specify a particular Java package/version to be installed:
-
-```puppet
-class { 'elasticsearch':
-  java_install => true,
-  java_package => 'packagename'
-}
-```
+### JVM Configuration
 
 When configuring Elasticsearch's memory usage, you can do so by either changing init defaults for Elasticsearch 1.x/2.x (see the [following example](#hash-representation)), or modify it globally in 5.x using `jvm.options`:
 
 ```puppet
 class { 'elasticsearch':
+  jvm_options => [
+    '-Xms4g',
+    '-Xmx4g'
+  ]
+}
+```
+
+`jvm.options` can also be controlled per-instance:
+
+```puppet
+elasticsearch::instance { 'es-01':
   jvm_options => [
     '-Xms4g',
     '-Xmx4g'
@@ -542,9 +604,6 @@ For example, the following manifest will install Elasticseach with a single inst
 
 ```puppet
 class { 'elasticsearch':
-  java_install    => true,
-  manage_repo     => true,
-  repo_version    => '5.x',
   security_plugin => 'x-pack',
 }
 
@@ -556,9 +615,6 @@ The following manifest will do the same, but with Shield:
 
 ```puppet
 class { 'elasticsearch':
-  java_install    => true,
-  manage_repo     => true,
-  repo_version    => '2.x',
   security_plugin => 'shield',
 }
 
@@ -718,26 +774,33 @@ elasticsearch::instance { 'es-01':
 }
 ```
 
-### Package version pinning
+### Licensing
 
-The module supports pinning the package version to avoid accidental upgrades that are not done by Puppet.
-To enable this feature:
+If you use the aforementioned Shield/X-Pack plugins, you may need to install a user license to leverage particular features outside of a trial license.
+This module can handle installation of licenses without the need to write custom `exec` or `curl` code to install license data.
+
+You may instruct the module to install a license through the `elasticsearch::license` parameter:
 
 ```puppet
 class { 'elasticsearch':
-  package_pin => true,
-  version     => '1.5.2',
+  license => $license,
+  security_plugin => 'x-pack',
 }
 ```
 
-In this example we pin the package version to 1.5.2.
+The `license` parameter will accept either a Puppet hash representation of the license file json or a plain json string that will be parsed into a native Puppet hash.
+Although dependencies are automatically created to ensure that any `elasticsearch::instance` resources are listening and ready before API calls are made, you may need to set the appropriate `api_*` parameters to ensure that the module can interact with the Elasticsearch API over the appropriate port, protocol, and with sufficient user rights to install the license.
+
+The native provider for licenses will _not_ print license signatures as part of Puppet's changelog to ensure that sensitive values are not included in console output or Puppet reports.
+Any fields present in the `license` parameter that differ from the license installed in a cluster will trigger a flush of the resource and new `POST` to the Elasticsearch API with the license content, though the sensitive `signature` field is not compared as it is not returned from the Elasticsearch licensing APIs.
 
 ### Data directories
 
-There are 4 different ways of setting data directories for Elasticsearch.
+There are several different ways of setting data directories for Elasticsearch.
 In every case the required configuration options are placed in the `elasticsearch.yml` file.
 
 #### Default
+
 By default we use:
 
     /usr/share/elasticsearch/data/$instance_name
@@ -797,6 +860,28 @@ Creates the following for this instance:
 and
 `/var/lib/es-data2-es01`.
 
+#### Shared global data directories
+
+In some cases, you may want to share a top-level data directory among multiple instances.
+
+```puppet
+class { 'elasticsearch':
+  datadir_instance_directories => false,
+  config => {
+    'node.max_local_storage_nodes' => 2
+  }
+}
+
+elasticsearch::instance { 'es-01': }
+elasticsearch::instance { 'es-02': }
+```
+
+Will result in the following directories created by Elasticsearch at runtime:
+
+    /var/lib/elasticsearch/nodes/0
+    /var/lib/elasticsearch/nodes/1
+
+See [the Elasticsearch documentation](https://www.elastic.co/guide/en/elasticsearch/reference/current/modules-node.html#max-local-storage-nodes) for additional information regarding this configuration.
 
 ### Main and instance configurations
 
@@ -879,6 +964,52 @@ class { 'elasticsearch':
 }
 ```
 
+#### Keystore Settings
+
+Recent versions of Elasticsearch include the [elasticsearch-keystore](https://www.elastic.co/guide/en/elasticsearch/reference/current/secure-settings.html) utility to create and manage the `elasticsearch.keystore` file which can store sensitive values for certain settings.
+The settings and values for this file can be controlled by this module.
+Settings follow the behavior of the `config` parameter for the top-level Elasticsearch class and `elasticsearch::instance` defined types.
+That is, you may define keystore settings globally, and all values will be merged with instance-specific settings for final inclusion in the `elasticsearch.keystore` file.
+Note that each hash key is passed to the `elasticsearch-keystore` utility in a straightforward manner, so you should specify the hash passed to `secrets` in flattened form (that is, without full nested hash representation).
+
+For example, to define cloud plugin credentials for all instances:
+
+```puppet
+class { 'elasticsearch':
+  secrets => {
+    'cloud.aws.access_key' => 'AKIA....',
+    'cloud.aws.secret_key' => 'AKIA....',
+  }
+}
+```
+
+Or, to instead control these settings for a single instance:
+
+```puppet
+elasticsearch::instance { 'es-01':
+  secrets => {
+    'cloud.aws.access_key' => 'AKIA....',
+    'cloud.aws.secret_key' => 'AKIA....',
+  }
+}
+```
+
+##### Purging Secrets
+
+By default, if a secret setting exists on-disk that is not present in the `secrets` hash, this module will leave it intact.
+If you prefer to keep only secrets in the keystore that are specified in the `secrets` hash, use the `purge_secrets` boolean parameter either on the `elasticsearch` class to set it globally or per-instance.
+
+##### Notifying Services
+
+Any changes to keystore secrets will notify running elasticsearch services by respecting the `restart_on_change` and `restart_config_change` parameters.
+
+## Reference
+
+Class parameters are available in [the auto-generated documentation
+pages](https://elastic.github.io/puppet-elasticsearch/puppet_classes/elasticsearch.html).
+Autogenerated documentation for types, providers, and ruby helpers is also
+available on the same documentation site.
+
 ## Limitations
 
 This module is built upon and tested against the versions of Puppet listed in
@@ -890,7 +1021,7 @@ The module has been tested on:
 * Debian 7/8
 * CentOS 6/7
 * OracleLinux 6/7
-* Ubuntu 12.04, 14.04, 16.04
+* Ubuntu 14.04, 16.04
 * OpenSuSE 42.x
 * SLES 12
 
