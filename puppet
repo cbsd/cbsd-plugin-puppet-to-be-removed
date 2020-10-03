@@ -148,6 +148,13 @@ puppet_setup()
 			[ ! -d ${i} ] && ${MKDIR_CMD} -p ${i}
 		done
 
+		if is_mounted ${path}/tmp/cbsdpuppet; then
+			${UMOUNT_CMD} -f ${path}/tmp/cbsdpuppet
+		fi
+		if is_mounted ${path}/tmp/puppet; then
+			${UMOUNT_CMD} -f ${path}/tmp/puppet
+		fi
+
 		${MOUNT_CMD} -t nullfs -oro /usr/local/cbsd/modules/puppet.d ${path}/tmp/cbsdpuppet
 		${MOUNT_CMD} -t nullfs -oro ${workdir}/jails-data/cbsdpuppet1-data/usr/local ${path}/tmp/puppet
 
