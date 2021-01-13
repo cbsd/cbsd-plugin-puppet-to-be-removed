@@ -113,12 +113,23 @@ describe 'nginx::resource::location' do
               match: '    expires 33d;'
             },
             {
-              title: 'should set location_allow',
+              title: 'should set location_allow (flat array)',
               attr: 'location_allow',
               value: %w[127.0.0.1 10.0.0.1],
               match: [
                 '    allow 127.0.0.1;',
                 '    allow 10.0.0.1;'
+              ]
+            },
+            {
+              title: 'should set location_allow (nested array)',
+              attr: 'location_allow',
+              value: ['127.0.0.1', '10.0.0.1', ['127.0.0.2', '10.0.0.2']],
+              match: [
+                '    allow 127.0.0.1;',
+                '    allow 10.0.0.1;',
+                '    allow 127.0.0.2;',
+                '    allow 10.0.0.2;'
               ]
             },
             {
@@ -448,6 +459,21 @@ describe 'nginx::resource::location' do
               is_expected.to contain_concat__fragment('server1-500-' + Digest::MD5.hexdigest('location')).
                 with_content(%r{^\s+add_header\s+"header 3"\s+'test value 3' tv3;$})
             end
+          end
+        end
+
+        describe 'server_location_gzip template content' do
+          let :params do
+            {
+              location: 'location',
+              server: 'server1',
+              gzip_static: 'on'
+            }
+          end
+
+          it 'contain gzip_static if set' do
+            is_expected.to contain_concat__fragment('server1-500-' + Digest::MD5.hexdigest('location')).
+              with_content(%r{^\s+gzip_static\s+on;$})
           end
         end
 
@@ -952,6 +978,12 @@ describe 'nginx::resource::location' do
               attr: 'proxy_buffering',
               value: 'on',
               match: %r{\s+proxy_buffering\s+on;}
+            },
+            {
+              title: 'should set proxy_request_buffering',
+              attr: 'proxy_request_buffering',
+              value: 'on',
+              match: %r{\s+proxy_request_buffering\s+on;}
             },
             {
               title: 'should set proxy_max_temp_file_size',

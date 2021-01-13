@@ -1,6 +1,5 @@
-# Class: nginx
-#
-# This module manages NGINX.
+# @summary
+#   This module manages NGINX.
 #
 # Parameters:
 #
@@ -25,6 +24,14 @@
 #   include nginx
 # }
 #
+# @param include_modules_enabled
+#   When set, nginx will include module configurations files installed in the
+#   /etc/nginx/modules-enabled directory.
+#
+# @param passenger_package_name
+#   The name of the package to install in order for the passenger module of
+#   nginx being usable.
+#
 # @param nginx_version
 #   The version of nginx installed (or being installed).
 #   Unfortunately, different versions of nginx may need configuring
@@ -32,6 +39,14 @@
 #   already installed.  If the fact is unavailable, it defaults to '1.6.0'.
 #   You may need to set this manually to get a working and idempotent
 #   configuration.
+#
+# @param debug_connections
+#   Configures nginx `debug_connection` lines in the `events` section of the nginx config.
+#   See http://nginx.org/en/docs/ngx_core_module.html#debug_connection
+#
+# @param service_config_check
+#  whether to en- or disable the config check via nginx -t on config changes
+#
 class nginx (
   ### START Nginx Configuration ###
   Variant[Stdlib::Absolutepath, Boolean] $client_body_temp_path = $nginx::params::client_body_temp_path,
@@ -64,6 +79,7 @@ class nginx (
   Boolean $super_user                                        = $nginx::params::super_user,
   $temp_dir                                                  = $nginx::params::temp_dir,
   Boolean $server_purge                                      = false,
+  Boolean $include_modules_enabled                           = $nginx::params::include_modules_enabled,
 
   # Primary Templates
   $conf_template                                             = 'nginx/conf.d/nginx.conf.erb',
@@ -79,6 +95,7 @@ class nginx (
   $lingering_timeout                                         = '5s',
   Optional[Enum['on', 'off']] $etag                          = undef,
   Optional[String] $events_use                               = undef,
+  Array[Nginx::DebugConnection] $debug_connections           = [],
   String $fastcgi_cache_inactive                             = '20m',
   Optional[String] $fastcgi_cache_key                        = undef,
   String $fastcgi_cache_keys_zone                            = 'd3:100m',
@@ -95,6 +112,7 @@ class nginx (
   $gzip_proxied                                              = 'off',
   $gzip_types                                                = undef,
   Enum['on', 'off'] $gzip_vary                               = 'off',
+  Optional[Enum['on', 'off', 'always']] $gzip_static         = undef,
   Optional[Variant[Hash, Array]] $http_cfg_prepend           = undef,
   Optional[Variant[Hash, Array]] $http_cfg_append            = undef,
   Optional[Variant[Array[String], String]] $http_raw_prepend = undef,
@@ -144,6 +162,7 @@ class nginx (
   Enum['on', 'off'] $spdy                                    = 'off',
   Enum['on', 'off'] $http2                                   = 'off',
   Enum['on', 'off'] $ssl_stapling                            = 'off',
+  Enum['on', 'off'] $ssl_stapling_verify                     = 'off',
   Stdlib::Absolutepath $snippets_dir                         = $nginx::params::snippets_dir,
   Boolean $manage_snippets_dir                               = true,
   $types_hash_bucket_size                                    = '512',
@@ -152,9 +171,21 @@ class nginx (
   Enum['on', 'off'] $ssl_prefer_server_ciphers               = 'on',
   Variant[Integer, Enum['auto']] $worker_processes           = 'auto',
   Integer $worker_rlimit_nofile                              = 1024,
-  $ssl_protocols                                             = 'TLSv1 TLSv1.1 TLSv1.2',
-  $ssl_ciphers                                               = 'ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA384:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA:ECDHE-RSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA:DHE-RSA-AES256-SHA256:DHE-RSA-AES256-SHA:ECDHE-ECDSA-DES-CBC3-SHA:ECDHE-RSA-DES-CBC3-SHA:EDH-RSA-DES-CBC3-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:AES256-SHA:DES-CBC3-SHA:!DSS', # lint:ignore:140chars
+  String $ssl_protocols                                      = 'TLSv1 TLSv1.1 TLSv1.2',
+  String $ssl_ciphers                                        = 'ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA384:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA:ECDHE-RSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA:DHE-RSA-AES256-SHA256:DHE-RSA-AES256-SHA:ECDHE-ECDSA-DES-CBC3-SHA:ECDHE-RSA-DES-CBC3-SHA:EDH-RSA-DES-CBC3-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:AES256-SHA:DES-CBC3-SHA:!DSS', # lint:ignore:140chars
   Optional[Stdlib::Unixpath] $ssl_dhparam                    = undef,
+  Optional[String] $ssl_ecdh_curve                           = undef,
+  String $ssl_session_cache                                  = 'shared:SSL:10m',
+  String $ssl_session_timeout                                = '5m',
+  Optional[Enum['on', 'off']] $ssl_session_tickets           = undef,
+  Optional[Stdlib::Absolutepath] $ssl_session_ticket_key     = undef,
+  Optional[String] $ssl_buffer_size                          = undef,
+  Optional[Stdlib::Absolutepath] $ssl_crl                    = undef,
+  Optional[Stdlib::Absolutepath] $ssl_stapling_file          = undef,
+  Optional[String] $ssl_stapling_responder                   = undef,
+  Optional[Stdlib::Absolutepath] $ssl_trusted_certificate    = undef,
+  Optional[Integer] $ssl_verify_depth                        = undef,
+  Optional[Stdlib::Absolutepath] $ssl_password_file          = undef,
 
   ### START Package Configuration ###
   $package_ensure                                            = present,
@@ -166,16 +197,18 @@ class nginx (
   Boolean $mime_types_preserve_defaults                      = false,
   Optional[String] $repo_release                             = undef,
   $passenger_package_ensure                                  = 'present',
+  String[1] $passenger_package_name                          = $nginx::params::passenger_package_name,
   Optional[Stdlib::HTTPUrl] $repo_source                     = undef,
   ### END Package Configuration ###
 
   ### START Service Configuation ###
-  $service_ensure                                            = running,
+  Stdlib::Ensure::Service $service_ensure                    = 'running',
   $service_enable                                            = true,
   $service_flags                                             = undef,
   $service_restart                                           = undef,
   $service_name                                              = 'nginx',
   $service_manage                                            = true,
+  Boolean $service_config_check                              = false,
   ### END Service Configuration ###
 
   ### START Hiera Lookups ###
@@ -198,7 +231,6 @@ class nginx (
 
   ### END Hiera Lookups ###
 ) inherits nginx::params {
-
   contain 'nginx::package'
   contain 'nginx::config'
   contain 'nginx::service'

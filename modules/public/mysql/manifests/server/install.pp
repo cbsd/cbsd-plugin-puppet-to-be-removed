@@ -1,3 +1,7 @@
+# @summary
+#   Private class for managing MySQL package.
+#
+# @api private
 #
 class mysql::server::install {
 
@@ -7,6 +11,8 @@ class mysql::server::install {
       ensure          => $mysql::server::package_ensure,
       install_options => $mysql::server::install_options,
       name            => $mysql::server::package_name,
+      provider        => $mysql::server::package_provider,
+      source          => $mysql::server::package_source,
     }
   }
 

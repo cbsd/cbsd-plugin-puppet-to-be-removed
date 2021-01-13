@@ -1,8 +1,13 @@
+# @summary 
+#   Private class for managing the root password
+#
+# @api private
 #
 class mysql::server::root_password {
 
-  $options = $mysql::server::options
+  $options = $mysql::server::_options
   $secret_file = $mysql::server::install_secret_file
+  $login_file = $mysql::server::login_file
 
   # New installations of MySQL will configure a default random password for the root user
   # with an expiration. No actions can be performed until this password is changed. The
@@ -22,7 +27,7 @@ class mysql::server::root_password {
   if $mysql::server::create_root_user == true and $mysql::server::root_password != 'UNSET' {
     mysql_user { 'root@localhost':
       ensure        => present,
-      password_hash => mysql_password($mysql::server::root_password),
+      password_hash => mysql::password($mysql::server::root_password),
       require       => Exec['remove install pass']
     }
   }
@@ -43,4 +48,11 @@ class mysql::server::root_password {
     }
   }
 
+  if $mysql::server::create_root_login_file == true and $mysql::server::root_password != 'UNSET' {
+    file { "${::root_home}/.mylogin.cnf":
+      source => $login_file,
+      owner  => 'root',
+      mode   => '0600',
+    }
+  }
 }

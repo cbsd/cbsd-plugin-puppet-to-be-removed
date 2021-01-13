@@ -1,30 +1,39 @@
-# See README.me for usage.
+# @summary
+#   Manage the mysqlbackup client.
+#
+# @api private
+#
 class mysql::backup::mysqlbackup (
-  $backupuser         = '',
-  $backuppassword     = '',
-  $maxallowedpacket   = '1M',
-  $backupdir          = '',
-  $backupdirmode      = '0700',
-  $backupdirowner     = 'root',
-  $backupdirgroup     = $mysql::params::root_group,
-  $backupcompress     = true,
-  $backuprotate       = 30,
-  $ignore_events      = true,
-  $delete_before_dump = false,
-  $backupdatabases    = [],
-  $file_per_database  = false,
-  $include_triggers   = true,
-  $include_routines   = false,
-  $ensure             = 'present',
-  $time               = ['23', '5'],
-  $prescript          = false,
-  $postscript         = false,
-  $execpath           = '/usr/bin:/usr/sbin:/bin:/sbin',
+  $backupuser               = '',
+  $backuppassword           = '',
+  $maxallowedpacket         = '1M',
+  $backupdir                = '',
+  $backupdirmode            = '0700',
+  $backupdirowner           = 'root',
+  $backupdirgroup           = $mysql::params::root_group,
+  $backupcompress           = true,
+  $backuprotate             = 30,
+  $backupmethod             = '',
+  $backup_success_file_path = undef,
+  $ignore_events            = true,
+  $delete_before_dump       = false,
+  $backupdatabases          = [],
+  $file_per_database        = false,
+  $include_triggers         = true,
+  $include_routines         = false,
+  $ensure                   = 'present',
+  $time                     = ['23', '5'],
+  $prescript                = false,
+  $postscript               = false,
+  $execpath                 = '/usr/bin:/usr/sbin:/bin:/sbin',
+  $optional_args            = [],
+  $incremental_backups      = false,
+  $install_cron             = true,
 ) inherits mysql::params {
 
   mysql_user { "${backupuser}@localhost":
     ensure        => $ensure,
-    password_hash => mysql_password($backuppassword),
+    password_hash => mysql::password($backuppassword),
     require       => Class['mysql::server::root_password'],
   }
 
@@ -57,6 +66,16 @@ class mysql::backup::mysqlbackup (
     require    => Mysql_user["${backupuser}@localhost"],
   }
 
+  if $install_cron {
+    if $::osfamily == 'RedHat' and $::operatingsystemmajrelease == '5' {
+      ensure_packages('crontabs')
+    } elsif $::osfamily == 'RedHat' {
+      ensure_packages('cronie')
+    } elsif $::osfamily != 'FreeBSD' {
+      ensure_packages('cron')
+    }
+  }
+
   cron { 'mysqlbackup-weekly':
     ensure  => $ensure,
     command => 'mysqlbackup backup',
@@ -87,7 +106,7 @@ class mysql::backup::mysqlbackup (
       'password'               => $backuppassword,
     }
   }
-  $options = mysql_deepmerge($default_options, $mysql::server::override_options)
+  $options = mysql::normalise_and_deepmerge($default_options, $mysql::server::override_options)
 
   file { 'mysqlbackup-config-file':
     path    => '/etc/mysql/conf.d/meb.cnf',
@@ -95,12 +114,10 @@ class mysql::backup::mysqlbackup (
     mode    => '0600',
   }
 
-  file { 'mysqlbackupdir':
+  file { $backupdir:
     ensure => 'directory',
-    path   => $backupdir,
     mode   => $backupdirmode,
     owner  => $backupdirowner,
     group  => $backupdirgroup,
   }
-
 }

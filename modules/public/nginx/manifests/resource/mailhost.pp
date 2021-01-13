@@ -1,7 +1,5 @@
 # define: nginx::resource::mailhost
 #
-# This definition creates a virtual host
-#
 # Parameters:
 #   [*ensure*]                    - Enables or disables the specified mailhost (present|absent)
 #   [*listen_ip*]                 - Default IP Address for NGINX to listen with this server on. Defaults to all interfaces (*)
@@ -77,13 +75,13 @@
 #  }
 #
 define nginx::resource::mailhost (
-  Integer $listen_port,
+  Stdlib::Port $listen_port,
   Enum['absent', 'present'] $ensure              = 'present',
   Variant[Array[String], String] $listen_ip      = '*',
   Optional[String] $listen_options               = undef,
   Boolean $ipv6_enable                           = false,
   Variant[Array[String], String] $ipv6_listen_ip = '::',
-  Integer $ipv6_listen_port                      = 80,
+  Stdlib::Port $ipv6_listen_port                 = 80,
   String $ipv6_listen_options                    = 'default ipv6only=on',
   Boolean $ssl                                   = false,
   Optional[String] $ssl_cert                     = undef,
@@ -94,7 +92,7 @@ define nginx::resource::mailhost (
   Optional[String] $ssl_ecdh_curve               = undef,
   Optional[String] $ssl_key                      = undef,
   Optional[String] $ssl_password_file            = undef,
-  Optional[Integer] $ssl_port                    = undef,
+  Optional[Stdlib::Port] $ssl_port               = undef,
   Enum['on', 'off'] $ssl_prefer_server_ciphers   = $nginx::ssl_prefer_server_ciphers,
   String $ssl_protocols                          = $nginx::ssl_protocols,
   Optional[String] $ssl_session_cache            = undef,
@@ -122,21 +120,9 @@ define nginx::resource::mailhost (
   String $proxy_pass_error_message               = 'off',
   Array $server_name                             = [$name]
 ) {
-
   if ! defined(Class['nginx']) {
     fail('You must include the nginx base class before using any defined resources')
   }
-
-  $root_group = $nginx::root_group
-
-  File {
-    owner => 'root',
-    group => $root_group,
-    mode  => '0644',
-  }
-
-  $config_dir  = "${nginx::conf_dir}/conf.mail.d"
-  $config_file = "${config_dir}/${name}.conf"
 
   # Add IPv6 Logic Check - Nginx service will not start if ipv6 is enabled
   # and support does not exist for it in the kernel.
@@ -151,15 +137,20 @@ define nginx::resource::mailhost (
     }
   }
 
+  $config_dir  = "${nginx::conf_dir}/conf.mail.d"
+  $config_file = "${config_dir}/${name}.conf"
+
   concat { $config_file:
+    ensure  => $ensure,
     owner   => 'root',
-    group   => $root_group,
-    mode    => '0644',
-    notify  => Class['::nginx::service'],
+    group   => $nginx::root_group,
+    mode    => $nginx::global_mode,
+    notify  => Class['nginx::service'],
     require => File[$config_dir],
+    tag     => 'nginx_config_file',
   }
 
-  if (($ssl_port == undef) or ($listen_port + 0) != ($ssl_port + 0)) {
+  if $ssl_port == undef or $listen_port != $ssl_port {
     concat::fragment { "${name}-header":
       target  => $config_file,
       content => template('nginx/mailhost/mailhost.erb'),
@@ -168,7 +159,7 @@ define nginx::resource::mailhost (
   }
 
   # Create SSL File Stubs if SSL is enabled
-  if ($ssl) {
+  if $ssl {
     concat::fragment { "${name}-ssl":
       target  => $config_file,
       content => template('nginx/mailhost/mailhost_ssl.erb'),

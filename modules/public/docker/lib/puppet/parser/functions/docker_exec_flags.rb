@@ -1,8 +1,12 @@
-require 'shellwords'
+# frozen_string_literal: true
 
+require 'shellwords'
+#
+# docker_exec_flags.rb
+#
 module Puppet::Parser::Functions
   # Transforms a hash into a string of docker exec flags
-  newfunction(:docker_exec_flags, :type => :rvalue) do |args|
+  newfunction(:docker_exec_flags, type: :rvalue) do |args|
     opts = args[0] || {}
     flags = []
 
@@ -18,6 +22,12 @@ module Puppet::Parser::Functions
       flags << '--tty=true'
     end
 
-    flags.flatten.join(" ")
+    if opts['env']
+      opts['env'].each do |namevaluepair|
+        flags << "--env #{namevaluepair}"
+      end
+    end
+
+    flags.flatten.join(' ')
   end
 end

@@ -1,45 +1,186 @@
-# == Class: docker::service
+# @summary manage the docker service daemon
 #
-# Class to manage the docker service daemon
-#
-# === Parameters
-# [*tcp_bind*]
+# @param tcp_bind
 #   Which tcp port, if any, to bind the docker service to.
 #
-# [*ip_forward*]
+# @param ip_forward
 #   This flag interacts with the IP forwarding setting on
 #   your host system's kernel
 #
-# [*iptables*]
+# @param iptables
 #   Enable Docker's addition of iptables rules
 #
-# [*ip_masq*]
+# @param ip_masq
 #   Enable IP masquerading for bridge's IP range.
 #
-# [*socket_bind*]
+# @param socket_bind
 #   Which local unix socket to bind the docker service to.
 #
-# [*socket_group*]
+# @param socket_group
 #   Which local unix socket to bind the docker service to.
 #
-# [*root_dir*]
+# @param root_dir
 #   Specify a non-standard root directory for docker.
 #
-# [*extra_parameters*]
+# @param extra_parameters
 #   Plain additional parameters to pass to the docker daemon
 #
-# [*shell_values*]
+# @param shell_values
 #   Array of shell values to pass into init script config files
 #
-# [*manage_service*]
+# @param manage_service
 #   Specify whether the service should be managed.
 #   Valid values are 'true', 'false'.
 #   Defaults to 'true'.
 #
+# @param docker_command
+#
+# @param docker_start_command
+#
+# @param service_name
+#
+# @param icc
+#
+# @param bridge
+#
+# @param fixed_cidr
+#
+# @param default_gateway
+#
+# @param ipv6
+#
+# @param ipv6_cidr
+#
+# @param default_gateway_ipv6
+#
+# @param log_level
+#
+# @param log_driver
+#
+# @param log_opt
+#
+# @param selinux_enabled
+#
+# @param labels
+#
+# @param dns
+#
+# @param dns_search
+#
+# @param service_state
+#
+# @param service_enable
+#
+# @param proxy
+#
+# @param no_proxy
+#
+# @param execdriver
+#
+# @param bip
+#
+# @param mtu
+#
+# @param storage_driver
+#
+# @param dm_basesize
+#
+# @param dm_fs
+#
+# @param dm_mkfsarg
+#
+# @param dm_mountopt
+#
+# @param dm_blocksize
+#
+# @param dm_loopdatasize
+#
+# @param dm_loopmetadatasize
+#
+# @param dm_datadev
+#
+# @param dm_metadatadev
+#
+# @param tmp_dir_config
+#
+# @param tmp_dir
+#
+# @param dm_thinpooldev
+#
+# @param dm_use_deferred_removal
+#
+# @param dm_use_deferred_deletion
+#
+# @param dm_blkdiscard
+#
+# @param dm_override_udev_sync_check
+#
+# @param overlay2_override_kernel_check
+#
+# @param storage_devs
+#
+# @param storage_vg
+#
+# @param storage_root_size
+#
+# @param storage_data_size
+#
+# @param storage_min_data_size
+#
+# @param storage_chunk_size
+#
+# @param storage_growpart
+#
+# @param storage_auto_extend_pool
+#
+# @param storage_pool_autoextend_threshold
+#
+# @param storage_pool_autoextend_percent
+#
+# @param storage_config
+#
+# @param storage_config_template
+#
+# @param storage_setup_file
+#
+# @param service_provider
+#
+# @param service_config
+#
+# @param service_config_template
+#
+# @param service_overrides_template
+#
+# @param socket_overrides_template
+#
+# @param socket_override
+#
+# @param service_after_override
+#
+# @param service_hasstatus
+#
+# @param service_hasrestart
+#
+# @param daemon_environment_files
+#
+# @param tls_enable
+#
+# @param tls_verify
+#
+# @param tls_cacert
+#
+# @param tls_cert
+#
+# @param tls_key
+#
+# @param registry_mirror
+#
+# @param root_dir_flag
+#
 class docker::service (
   $docker_command                    = $docker::docker_command,
+  $docker_start_command              = $docker::docker_start_command,
   $service_name                      = $docker::service_name,
-  $daemon_subcommand                 = $docker::daemon_subcommand,
   $tcp_bind                          = $docker::tcp_bind,
   $ip_forward                        = $docker::ip_forward,
   $iptables                          = $docker::iptables,
@@ -48,6 +189,9 @@ class docker::service (
   $bridge                            = $docker::bridge,
   $fixed_cidr                        = $docker::fixed_cidr,
   $default_gateway                   = $docker::default_gateway,
+  $ipv6                              = $docker::ipv6,
+  $ipv6_cidr                         = $docker::ipv6_cidr,
+  $default_gateway_ipv6              = $docker::default_gateway_ipv6,
   $socket_bind                       = $docker::socket_bind,
   $log_level                         = $docker::log_level,
   $log_driver                        = $docker::log_driver,
@@ -78,13 +222,14 @@ class docker::service (
   $dm_loopmetadatasize               = $docker::dm_loopmetadatasize,
   $dm_datadev                        = $docker::dm_datadev,
   $dm_metadatadev                    = $docker::dm_metadatadev,
+  $tmp_dir_config                    = $docker::tmp_dir_config,
   $tmp_dir                           = $docker::tmp_dir,
-  $nowarn_kernel                     = $docker::nowarn_kernel,
   $dm_thinpooldev                    = $docker::dm_thinpooldev,
   $dm_use_deferred_removal           = $docker::dm_use_deferred_removal,
   $dm_use_deferred_deletion          = $docker::dm_use_deferred_deletion,
   $dm_blkdiscard                     = $docker::dm_blkdiscard,
   $dm_override_udev_sync_check       = $docker::dm_override_udev_sync_check,
+  $overlay2_override_kernel_check    = $docker::overlay2_override_kernel_check,
   $storage_devs                      = $docker::storage_devs,
   $storage_vg                        = $docker::storage_vg,
   $storage_root_size                 = $docker::storage_root_size,
@@ -102,30 +247,38 @@ class docker::service (
   $service_config                    = $docker::service_config,
   $service_config_template           = $docker::service_config_template,
   $service_overrides_template        = $docker::service_overrides_template,
+  $socket_overrides_template         = $docker::socket_overrides_template,
+  $socket_override                   = $docker::socket_override,
+  $service_after_override            = $docker::service_after_override,
   $service_hasstatus                 = $docker::service_hasstatus,
   $service_hasrestart                = $docker::service_hasrestart,
+  $daemon_environment_files          = $docker::daemon_environment_files,
   $tls_enable                        = $docker::tls_enable,
   $tls_verify                        = $docker::tls_verify,
   $tls_cacert                        = $docker::tls_cacert,
   $tls_cert                          = $docker::tls_cert,
   $tls_key                           = $docker::tls_key,
+  $registry_mirror                   = $docker::registry_mirror,
+  $root_dir_flag                     = $docker::root_dir_flag,
 ) {
-
-  unless $::osfamily =~ /(Debian|RedHat|Archlinux|Gentoo)/ {
-    fail('The docker::service class needs a Debian, RedHat, Archlinux or Gentoo based system.')
+  unless $facts['os']['family'] =~ /(Debian|RedHat|windows)/ or $::docker::acknowledge_unsupported_os {
+    fail(translate('The docker::service class needs a Debian, Redhat or Windows based system.'))
   }
 
-  $dns_array = any2array($dns)
-  $dns_search_array = any2array($dns_search)
+  $dns_array              = any2array($dns)
+  $dns_search_array       = any2array($dns_search)
+  $labels_array           = any2array($labels)
   $extra_parameters_array = any2array($extra_parameters)
-  $shell_values_array = any2array($shell_values)
-  $tcp_bind_array = any2array($tcp_bind)
+  $shell_values_array     = any2array($shell_values)
+  $tcp_bind_array         = any2array($tcp_bind)
 
-  if $service_config {
+  if $service_config != undef {
     $_service_config = $service_config
   } else {
-    if $::osfamily == 'Debian' {
+    if $facts['os']['family'] == 'Debian' {
       $_service_config = "/etc/default/${service_name}"
+    } else {
+      $_service_config = undef
     }
   }
 
@@ -134,9 +287,9 @@ class docker::service (
     default => [],
   }
 
-  if $::osfamily == 'RedHat' {
+  if $facts['os']['family'] == 'RedHat' {
     file { $storage_setup_file:
-      ensure  => present,
+      ensure  => file,
       force   => true,
       content => template('docker/etc/sysconfig/docker-storage-setup.erb'),
       before  => $_manage_service,
@@ -144,25 +297,52 @@ class docker::service (
     }
   }
 
+  if $facts['os']['family'] == 'windows' {
+    $dirs = [
+      "${::docker_program_data_path}/docker/",
+      "${::docker_program_data_path}/docker/config/",
+    ]
+
+    $dirs.each |$dir| {
+      file { $dir:
+        ensure  => directory,
+      }
+    }
+  }
+
   case $service_provider {
     'systemd': {
       file { '/etc/systemd/system/docker.service.d':
-        ensure => directory
+        ensure => 'directory',
       }
 
       if $service_overrides_template {
         file { '/etc/systemd/system/docker.service.d/service-overrides.conf':
-          ensure  => present,
+          ensure  => file,
           content => template($service_overrides_template),
           notify  => Exec['docker-systemd-reload-before-service'],
           before  => $_manage_service,
         }
-        exec { 'docker-systemd-reload-before-service':
-          path        => ['/bin/', '/sbin/', '/usr/bin/', '/usr/sbin/'],
-          command     => 'systemctl daemon-reload > /dev/null',
-          before      => $_manage_service,
-          refreshonly => true,
+      }
+
+      if $socket_override {
+        file { '/etc/systemd/system/docker.socket.d':
+          ensure => 'directory',
         }
+
+        file { '/etc/systemd/system/docker.socket.d/socket-overrides.conf':
+          ensure  => file,
+          content => template($socket_overrides_template),
+          notify  => Exec['docker-systemd-reload-before-service'],
+          before  => $_manage_service,
+        }
+      }
+
+      exec { 'docker-systemd-reload-before-service':
+        path        => [ '/bin/', '/sbin/', '/usr/bin/', '/usr/sbin/', ],
+        command     => 'systemctl daemon-reload > /dev/null',
+        notify      => $_manage_service,
+        refreshonly => true,
       }
     }
     'upstart': {
@@ -178,7 +358,7 @@ class docker::service (
 
   if $storage_config {
     file { $storage_config:
-      ensure  => present,
+      ensure  => file,
       force   => true,
       content => template($storage_config_template),
       notify  => $_manage_service,
@@ -187,7 +367,7 @@ class docker::service (
 
   if $_service_config {
     file { $_service_config:
-      ensure  => present,
+      ensure  => file,
       force   => true,
       content => template($service_config_template),
       notify  => $_manage_service,
@@ -195,13 +375,23 @@ class docker::service (
   }
 
   if $manage_service {
-    service { 'docker':
-      ensure     => $service_state,
-      name       => $service_name,
-      enable     => $service_enable,
-      hasstatus  => $service_hasstatus,
-      hasrestart => $service_hasrestart,
-      provider   => $service_provider,
+    if $facts['os']['family'] == 'windows' {
+      reboot { 'pending_reboot':
+        when    => 'pending',
+        onlyif  => 'component_based_servicing',
+        timeout => 1,
+      }
+    }
+
+    if ! defined(Service['docker']) {
+      service { 'docker':
+        ensure     => $service_state,
+        name       => $service_name,
+        enable     => $service_enable,
+        hasstatus  => $service_hasstatus,
+        hasrestart => $service_hasrestart,
+        provider   => $service_provider,
+      }
     }
   }
 }

@@ -1,8 +1,12 @@
-require 'shellwords'
+# frozen_string_literal: true
 
+require 'shellwords'
+#
+# docker_run_flags.rb
+#
 module Puppet::Parser::Functions
   # Transforms a hash into a string of docker flags
-  newfunction(:docker_run_flags, :type => :rvalue) do |args|
+  newfunction(:docker_run_flags, type: :rvalue) do |args|
     opts = args[0] || {}
     flags = []
 
@@ -18,8 +22,10 @@ module Puppet::Parser::Functions
       flags << "--restart '#{opts['restart']}'"
     end
 
-    if opts['net']
-      flags << "--net #{opts['net']}"
+    if opts['net'].is_a? String
+      flags << "--net #{opts['net'].shellescape}"
+    elsif opts['net'].is_a? Array
+      flags << "--net #{opts['net'].join(' --net ').shellescape}"
     end
 
     if opts['memory_limit']
@@ -29,7 +35,7 @@ module Puppet::Parser::Functions
     cpusets = [opts['cpuset']].flatten.compact
     unless cpusets.empty?
       value = cpusets.join(',')
-      flags << "--cpuset=#{value}"
+      flags << "--cpuset-cpus=#{value}"
     end
 
     if opts['disable_network']
@@ -40,17 +46,31 @@ module Puppet::Parser::Functions
       flags << '--privileged'
     end
 
-    if opts['detach']
-      flags << '--detach=true'
+    if opts['health_check_cmd'] && opts['health_check_cmd'].to_s != 'undef'
+      flags << "--health-cmd='#{opts['health_check_cmd']}'"
+    end
+
+    if opts['health_check_interval'] && opts['health_check_interval'].to_s != 'undef'
+      flags << "--health-interval=#{opts['health_check_interval']}s"
     end
 
     if opts['tty']
       flags << '-t'
     end
 
-    multi_flags = lambda { |values, format|
+    if opts['read_only']
+      flags << '--read-only=true'
+    end
+
+    params_join_char = if opts['osfamily'] && opts['osfamily'].to_s != 'undef'
+                         opts['osfamily'].casecmp('windows').zero? ? " `\n" : " \\\n"
+                       else
+                         " \\\n"
+                       end
+
+    multi_flags = ->(values, fmt) {
       filtered = [values].flatten.compact
-      filtered.map { |val| sprintf(format, val) }
+      filtered.map { |val| (fmt + params_join_char) % val }
     }
 
     [
@@ -60,12 +80,12 @@ module Puppet::Parser::Functions
       ['--link %s',         'links'],
       ['--lxc-conf="%s"',   'lxc_conf'],
       ['--volumes-from %s', 'volumes_from'],
-      ['-e %s',             'env'],
+      ['-e "%s"',           'env'],
       ['--env-file %s',     'env_file'],
       ['-p %s',             'ports'],
       ['-l %s',             'labels'],
       ['--add-host %s',     'hostentries'],
-      ['-v %s',             'volumes']
+      ['-v %s',             'volumes'],
     ].each do |(format, key)|
       values    = opts[key]
       new_flags = multi_flags.call(values, format)
@@ -76,6 +96,8 @@ module Puppet::Parser::Functions
       flags << param
     end
 
-    flags.flatten.join(" ")
+    # Some software (inc systemd) will truncate very long lines using glibc's
+    # max line length. Wrap options across multiple lines with '\' to avoid
+    flags.flatten.join(params_join_char)
   end
 end

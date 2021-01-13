@@ -1,6 +1,6 @@
 {
   "name": "puppet-nginx",
-  "version": "1.1.0",
+  "version": "2.1.1",
   "author": "Vox Pupuli",
   "summary": "Puppet NGINX management module",
   "license": "MIT",
@@ -28,7 +28,6 @@
     {
       "operatingsystem": "Debian",
       "operatingsystemrelease": [
-        "8",
         "9",
         "10"
       ]

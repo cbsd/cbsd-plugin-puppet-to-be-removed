@@ -1,16 +1,22 @@
+# frozen_string_literal: true
+
 require 'json'
 
 Puppet::Type.type(:docker_network).provide(:ruby) do
-  desc "Support for Docker Networking"
+  desc 'Support for Docker Networking'
 
   mk_resource_methods
-  commands :docker => 'docker'
+  commands dockercmd: 'docker'
 
-    def network_conf
-        flags = ['network', 'create']
-        multi_flags = lambda { |values, format|
+  has_command(:docker, command(:dockercmd)) do
+    environment(HOME: '/var/tmp')
+  end
+
+  def network_conf
+    flags = ['network', 'create']
+    multi_flags = ->(values, format) {
       filtered = [values].flatten.compact
-      filtered.map { |val| sprintf(format, val) }
+      filtered.map { |val| format % val }
     }
 
     [
@@ -26,59 +32,73 @@ Puppet::Type.type(:docker_network).provide(:ruby) do
       new_flags = multi_flags.call(values, format)
       flags.concat(new_flags)
     end
-        flags << resource[:name]
+
+    if defined?(resource[:additional_flags])
+      additional_flags = []
+      if resource[:additional_flags].is_a?(String)
+        additional_flags = resource[:additional_flags].split
+      elsif resource[:additional_flags].is_a?(Array)
+        additional_flags = resource[:additional_flags]
+      end
+      additional_flags.each do |additional_flag|
+        flags << additional_flag
+      end
     end
 
-    def self.instances
-        output = docker(['network', 'ls'])
-        lines = output.split("\n")
-        lines.shift # remove header row
-        lines.collect do |line|
-            _, name, driver = line.split(' ')
-            inspect = docker(['network', 'inspect', name])
-            obj = JSON.parse(inspect).first
-            subnet = unless obj['IPAM']['Config'].empty?
-                if obj['IPAM']['Config'].first.key? 'Subnet'
-                    obj['IPAM']['Config'].first['Subnet']
-                end
-            end
-            new({
-                :name => name,
-                :id => obj['Id'],
-                :ipam_driver => obj['IPAM']['Driver'],
-                :subnet => subnet,
-                :ensure => :present,
-                :driver => driver,
-            })
-        end
-    end
+    flags << resource[:name]
+  end
 
-    def self.prefetch(resources)
+  def self.instances
+    output = docker(['network', 'ls'])
+    lines = output.split("\n")
+    lines.shift # remove header row
+    lines.map do |line|
+      _, name, driver = line.split(' ')
+      inspect = docker(['network', 'inspect', name])
+      obj = JSON.parse(inspect).first
+      ipam_driver = unless obj['IPAM']['Driver'].nil?
+                      obj['IPAM']['Driver']
+                    end
+      subnet = unless obj['IPAM']['Config'].nil? || obj['IPAM']['Config'].empty?
+                 if obj['IPAM']['Config'].first.key? 'Subnet'
+                   obj['IPAM']['Config'].first['Subnet']
+                 end
+               end
+      new(
+        name: name,
+        id: obj['Id'],
+        ipam_driver: ipam_driver,
+        subnet: subnet,
+        ensure: :present,
+        driver: driver,
+      )
+    end
+  end
+
+  def self.prefetch(resources)
     instances.each do |prov|
       if resource = resources[prov.name] # rubocop:disable Lint/AssignmentInCondition
         resource.provider = prov
       end
     end
-    end
+  end
 
   def flush
-    if ! @property_hash.empty? and @property_hash[:ensure] != :absent
-      fail 'Docker network does not support mutating existing networks'
-    end
+    raise Puppet::Error, _('Docker network does not support mutating existing networks') if !@property_hash.empty? && @property_hash[:ensure] != :absent
   end
 
   def exists?
-      Puppet.info("Checking if docker network #{name} exists")
-        @property_hash[:ensure] == :present
+    Puppet.info("Checking if docker network #{name} exists")
+    @property_hash[:ensure] == :present
   end
 
-    def create
-      Puppet.info("Creating docker network #{name}")
-        docker(network_conf)
-     end
+  def create
+    Puppet.info("Creating docker network #{name}")
+    docker(network_conf)
+  end
 
   def destroy
-      Puppet.info("Removing docker network #{name}")
-        docker(['network', 'rm', name])
+    Puppet.info("Removing docker network #{name}")
+    docker(['network', 'rm', name])
   end
 end

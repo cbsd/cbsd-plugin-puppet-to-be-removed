@@ -102,6 +102,8 @@
 #   [*proxy_set_body*]        - If defined, sets the body passed to the backend.
 #   [*proxy_buffering*]       - If defined, sets the proxy_buffering to the passed
 #     value.
+#   [*proxy_request_buffering*] - If defined, sets the proxy_request_buffering to the passed
+#     value.
 #   [*proxy_max_temp_file_size*] - Sets the maximum size of the temporary buffer file.
 #   [*proxy_busy_buffers_size*] - Sets the total size of buffers that can be
 #     busy sending a response to the client while the response is not yet fully read.
@@ -120,6 +122,7 @@
 #     used for flv streaming. Default: false
 #   [*expires*]         - Setup expires time for locations content
 #   [*add_header*]      - Hash: Adds headers to the location block.  If any are specified, locations will no longer inherit headers from the parent server context
+#   [*gzip_static*]     - Defines gzip_static, nginx default is off
 #
 #
 # Actions:
@@ -192,7 +195,8 @@ define nginx::resource::location (
   Array $index_files                                               = [
     'index.html',
     'index.htm',
-    'index.php'],
+    'index.php',
+  ],
   Optional[String] $proxy                                          = undef,
   Optional[String] $proxy_redirect                                 = $nginx::proxy_redirect,
   String $proxy_read_timeout                                       = $nginx::proxy_read_timeout,
@@ -220,7 +224,7 @@ define nginx::resource::location (
   Optional[Enum['any', 'all']] $location_satisfy                   = undef,
   Optional[Array] $location_allow                                  = undef,
   Optional[Array] $location_deny                                   = undef,
-  Optional[Boolean ] $stub_status                                  = undef,
+  Optional[Boolean] $stub_status                                   = undef,
   Optional[Variant[String, Array]] $raw_prepend                    = undef,
   Optional[Variant[String, Array]] $raw_append                     = undef,
   Optional[Hash] $location_custom_cfg                              = undef,
@@ -240,6 +244,7 @@ define nginx::resource::location (
   Optional[String] $proxy_http_version                             = undef,
   Optional[String] $proxy_set_body                                 = undef,
   Optional[Enum['on', 'off']] $proxy_buffering                     = undef,
+  Optional[Enum['on', 'off']] $proxy_request_buffering             = undef,
   Optional[Nginx::Size] $proxy_max_temp_file_size                  = undef,
   Optional[Nginx::Size] $proxy_busy_buffers_size                   = undef,
   Optional[Enum['on', 'off']] $absolute_redirect                   = undef,
@@ -252,8 +257,8 @@ define nginx::resource::location (
   Boolean $flv                                                     = false,
   Optional[String] $expires                                        = undef,
   Hash $add_header                                                 = {},
+  Optional[Enum['on', 'off', 'always']] $gzip_static               = undef,
 ) {
-
   if ! defined(Class['nginx']) {
     fail('You must include the nginx base class before using any defined resources')
   }
@@ -263,8 +268,8 @@ define nginx::resource::location (
   File {
     owner  => 'root',
     group  => $root_group,
-    mode   => '0644',
-    notify => Class['::nginx::service'],
+    mode   => $nginx::global_mode,
+    notify => Class['nginx::service'],
   }
 
   # # Shared Variables
@@ -293,17 +298,19 @@ define nginx::resource::location (
     $fastcgi_params == "${nginx::conf_dir}/fastcgi.conf"
   ) {
     file { $fastcgi_params:
-      ensure  => 'present',
-      mode    => '0644',
+      ensure  => 'file',
+      mode    => $nginx::global_mode,
       content => template('nginx/server/fastcgi.conf.erb'),
+      tag     => 'nginx_config_file',
     }
   }
 
   if $ensure == 'present' and $uwsgi != undef and !defined(File[$uwsgi_params]) and $uwsgi_params == "${nginx::conf_dir}/uwsgi_params" {
     file { $uwsgi_params:
-      ensure  => 'present',
-      mode    => '0644',
+      ensure  => 'file',
+      mode    => $nginx::global_mode,
       content => template('nginx/server/uwsgi_params.erb'),
+      tag     => 'nginx_config_file',
     }
   }
 

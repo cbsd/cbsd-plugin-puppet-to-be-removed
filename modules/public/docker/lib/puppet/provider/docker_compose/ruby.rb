@@ -1,79 +1,106 @@
+# frozen_string_literal: true
+
+require 'deep_merge'
+
 Puppet::Type.type(:docker_compose).provide(:ruby) do
   desc 'Support for Puppet running Docker Compose'
 
   mk_resource_methods
-  commands :dockercompose => 'docker-compose'
-  commands :docker => 'docker'
+  commands dockercompose: 'docker-compose'
+  commands dockercmd: 'docker'
+
+  has_command(:docker, command(:dockercmd)) do
+    environment(HOME: '/var/tmp')
+  end
 
   def exists?
-    Puppet.info("Checking for compose project #{project}")
-    compose_file = YAML.load(File.read(name))
+    Puppet.info("Checking for compose project #{name}")
+    compose_services = {}
+    compose_containers = []
+
+    # get merged config using docker-compose config
+    args = [compose_files, '-p', name, 'config'].insert(3, resource[:options]).compact
+    compose_output = YAML.safe_load(execute([command(:dockercompose)] + args, combine: false))
+
+    # rubocop:disable Style/StringLiterals
     containers = docker([
-      'ps',
-      '--format',
-      "{{.Label \"com.docker.compose.service\"}}",
-      '--filter',
-      "label=com.docker.compose.project=#{project}"
-    ]).split("\n")
-    counts = case compose_file["version"]
-    when /^2(\.0)?$/
-      Hash[*compose_file["services"].each_key.collect { |key|
-        Puppet.info("Checking for compose service #{key}")
-        [key, containers.count(key)]
-      }.flatten]
-    when nil
-      Hash[*compose_file.each_key.collect { |key|
-        Puppet.info("Checking for compose service #{key}")
-        [key, containers.count(key)]
-      }.flatten]
-    else
-      raise(Puppet::Error, "Unsupported docker compose file syntax version \"#{compose_file["version"]}\"!")
+                          'ps',
+                          '--format',
+                          "{{.Label \"com.docker.compose.service\"}}-{{.Image}}",
+                          '--filter',
+                          "label=com.docker.compose.project=#{name}",
+                        ]).split("\n")
+    compose_containers.push(*containers)
+    compose_containers.uniq!
+
+    compose_services = compose_output['services']
+
+    if compose_services.count != compose_containers.count
+      return false
     end
+
+    counts = Hash[*compose_services.each.map { |key, array|
+                    image = (array['image']) ? array['image'] : get_image(key, compose_services)
+                    Puppet.info("Checking for compose service #{key} #{image}")
+                    ["#{key}-#{image}", compose_containers.count("#{key}-#{image}")]
+                  }.flatten]
+
     # No containers found for the project
-    if counts.empty? or
-      # Containers described in the compose file are not running
-      counts.any? { |k,v| v == 0 } or
-      # The scaling factors in the resource do not match the number of running containers
-      resource[:scale] && counts.merge(resource[:scale]) != counts
-        false
+    if counts.empty? ||
+       # Containers described in the compose file are not running
+       counts.any? { |_k, v| v.zero? } ||
+       # The scaling factors in the resource do not match the number of running containers
+       resource[:scale] && counts.merge(resource[:scale]) != counts
+      false
     else
       true
     end
   end
 
-  def create
-    Puppet.info("Running compose project #{project}")
-    args = ['-f', name, 'up', '-d'].insert(2, resource[:options]).insert(5,resource[:up_args]).compact
-    dockercompose(args)
-    if resource[:scale]
-      instructions = resource[:scale].collect { |k,v| "#{k}=#{v}" }
-      Puppet.info("Scaling compose project #{project}: #{instructions.join(' ')}")
-      args = ['-f', name, 'scale'].insert(2, resource[:options]).compact + instructions
-      dockercompose(args)
+  def get_image(service_name, compose_services)
+    image = compose_services[service_name]['image']
+    unless image
+      if compose_services[service_name]['extends']
+        image = get_image(compose_services[service_name]['extends'], compose_services)
+      elsif compose_services[service_name]['build']
+        image = "#{name}_#{service_name}"
+      end
     end
+    image
+  end
+
+  def create
+    Puppet.info("Running compose project #{name}")
+    args = [compose_files, '-p', name, 'up', '-d', '--remove-orphans'].insert(3, resource[:options]).insert(5, resource[:up_args]).compact
+    dockercompose(args)
+    return unless resource[:scale]
+    instructions = resource[:scale].map { |k, v| "#{k}=#{v}" }
+    Puppet.info("Scaling compose project #{name}: #{instructions.join(' ')}")
+    args = [compose_files, '-p', name, 'scale'].insert(3, resource[:options]).compact + instructions
+    dockercompose(args)
   end
 
   def destroy
-    Puppet.info("Removing all containers for compose project #{project}")
-    kill_args = ['-f', name, 'kill'].insert(2, resource[:options]).compact
+    Puppet.info("Removing all containers for compose project #{name}")
+    kill_args = [compose_files, '-p', name, 'kill'].insert(3, resource[:options]).compact
     dockercompose(kill_args)
-    rm_args = ['-f', name, 'rm', '--force', '-v'].insert(2, resource[:options]).compact
+    rm_args = [compose_files, '-p', name, 'rm', '--force', '-v'].insert(3, resource[:options]).compact
     dockercompose(rm_args)
   end
 
   def restart
-    if exists?
-      Puppet.info("Rebuilding and Restarting all containers for compose project #{project}")
-      kill_args = ['-f', name, 'kill'].insert(2, resource[:options]).compact
-      dockercompose(kill_args)
-      build_args = ['-f', name, 'build'].insert(2, resource[:options]).compact
-      dockercompose(build_args)
-      create
-    end
+    return unless exists?
+    Puppet.info("Rebuilding and Restarting all containers for compose project #{name}")
+    kill_args = [compose_files, '-p', name, 'kill'].insert(3, resource[:options]).compact
+    dockercompose(kill_args)
+    build_args = [compose_files, '-p', name, 'build'].insert(3, resource[:options]).compact
+    dockercompose(build_args)
+    create
+  end
+
+  def compose_files
+    resource[:compose_files].map { |x| ['-f', x] }.flatten
   end
 
   private
-  def project
-    File.basename(File.dirname(name)).downcase.gsub(/[^0-9a-z ]/i, '')
-  end
 end

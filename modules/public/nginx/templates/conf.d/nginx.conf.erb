@@ -20,6 +20,9 @@ worker_rlimit_nofile <%= @worker_rlimit_nofile %>;
 <% if @pid -%>
 pid        <%= @pid %>;
 <% end -%>
+<% if @include_modules_enabled -%>
+include /etc/nginx/modules-enabled/*.conf;
+<% end -%>
 <% if @nginx_cfg_prepend -%>
 
 <%- field_width = @nginx_cfg_prepend.inject(0) { |l,(k,v)| k.size > l ? k.size : l } -%>
@@ -37,10 +40,13 @@ events {
   <%- end -%>
   worker_connections <%= @worker_connections -%>;
   <%- if @multi_accept == 'on' -%>
-    multi_accept on;
+  multi_accept on;
   <%- end -%>
   <%- if @events_use -%>
-    use <%= @events_use %>;
+  use <%= @events_use %>;
+  <%- end -%>
+  <%- @debug_connections.each do |address| -%>
+  debug_connection <%= address %>;
   <%- end -%>
 }
 
@@ -121,6 +127,9 @@ http {
 <% if @etag -%>
   etag <%= @etag %>;
 
+<% end -%>
+<% if @gzip_static -%>
+   gzip_static       <%= @gzip_static %>;
 <% end -%>
 <% if @gzip == 'on' -%>
   gzip              on;
@@ -216,6 +225,61 @@ http {
 <% end -%>
 <% if @fastcgi_cache_use_stale -%>
   fastcgi_cache_use_stale <%= @fastcgi_cache_use_stale %>;
+<% end -%>
+
+<% if @ssl_dhparam -%>
+  ssl_dhparam               <%= @ssl_dhparam %>;
+<% end -%>
+<% if @ssl_ecdh_curve -%>
+  ssl_ecdh_curve            <%= @ssl_ecdh_curve %>;
+<% end -%>
+<% if @ssl_session_cache -%>
+  ssl_session_cache         <%= @ssl_session_cache %>;
+<% end -%>
+<% if @ssl_session_timeout -%>
+  ssl_session_timeout       <%= @ssl_session_timeout %>;
+<% end -%>
+<% if @ssl_session_tickets -%>
+  ssl_session_tickets       <%= @ssl_session_tickets %>;
+<% end -%>
+<% if @ssl_session_ticket_key -%>
+  ssl_session_ticket_key    <%= @ssl_session_ticket_key %>;
+<% end -%>
+<% if @ssl_buffer_size -%>
+  ssl_buffer_size           <%= @ssl_buffer_size %>;
+<% end -%>
+<% if @ssl_protocols -%>
+  ssl_protocols             <%= @ssl_protocols %>;
+<% end -%>
+<% if @ssl_ciphers -%>
+  ssl_ciphers               <%= @ssl_ciphers %>;
+<% end -%>
+<% if @ssl_prefer_server_ciphers -%>
+  ssl_prefer_server_ciphers <%= @ssl_prefer_server_ciphers %>;
+<% end -%>
+<% if @ssl_crl -%>
+  ssl_crl                   <%= @ssl_crl %>;
+<% end -%>
+<% if @ssl_stapling -%>
+  ssl_stapling              <%= @ssl_stapling %>;
+<% end -%>
+<% if @ssl_stapling_file -%>
+  ssl_stapling_file         <%= @ssl_stapling_file %>;
+<% end -%>
+<% if @ssl_stapling_responder -%>
+  ssl_stapling_responder    <%= @ssl_stapling_responder %>;
+<% end -%>
+<% if @ssl_stapling_verify -%>
+  ssl_stapling_verify       <%= @ssl_stapling_verify %>;
+<% end -%>
+<% if @ssl_trusted_certificate -%>
+  ssl_trusted_certificate   <%= @ssl_trusted_certificate %>;
+<% end -%>
+<% if @ssl_verify_depth -%>
+  ssl_verify_depth          <%= @ssl_verify_depth %>;
+<% end -%>
+<% if @ssl_password_file -%>
+  ssl_password_file         <%= @ssl_password_file %>;
 <% end -%>
 <% if @http_cfg_append -%>
 

@@ -47,25 +47,24 @@
 #    ensure   => present,
 #  }
 define nginx::resource::streamhost (
-  Enum['absent', 'present'] $ensure       = 'present',
-  Variant[Array, String] $listen_ip       = '*',
-  Integer $listen_port                    = 80,
-  Optional[String] $listen_options        = undef,
-  Boolean $ipv6_enable                    = false,
-  Variant[Array, String] $ipv6_listen_ip  = '::',
-  Integer $ipv6_listen_port               = 80,
-  String $ipv6_listen_options             = 'default ipv6only=on',
-  $proxy                                  = undef,
-  String $proxy_read_timeout              = $nginx::proxy_read_timeout,
-  $proxy_connect_timeout                  = $nginx::proxy_connect_timeout,
-  Array $resolver                         = [],
-  $raw_prepend                            = undef,
-  $raw_append                             = undef,
-  String $owner                           = $nginx::global_owner,
-  String $group                           = $nginx::global_group,
-  String $mode                            = $nginx::global_mode,
+  Enum['absent', 'present'] $ensure            = 'present',
+  Variant[Array, String] $listen_ip            = '*',
+  Integer $listen_port                         = 80,
+  Optional[String] $listen_options             = undef,
+  Boolean $ipv6_enable                         = false,
+  Variant[Array, String] $ipv6_listen_ip       = '::',
+  Integer $ipv6_listen_port                    = 80,
+  String $ipv6_listen_options                  = 'default ipv6only=on',
+  $proxy                                       = undef,
+  String $proxy_read_timeout                   = $nginx::proxy_read_timeout,
+  $proxy_connect_timeout                       = $nginx::proxy_connect_timeout,
+  Array $resolver                              = [],
+  Variant[Array[String], String] $raw_prepend  = [],
+  Variant[Array[String], String] $raw_append   = [],
+  String $owner                                = $nginx::global_owner,
+  String $group                                = $nginx::global_group,
+  String $mode                                 = $nginx::global_mode,
 ) {
-
   if ! defined(Class['nginx']) {
     fail('You must include the nginx base class before using any defined resources')
   }
@@ -85,20 +84,9 @@ define nginx::resource::streamhost (
   $name_sanitized = regsubst($name, ' ', '_', 'G')
   $config_file = "${streamhost_dir}/${name_sanitized}.conf"
 
-  File {
-    ensure => $ensure ? {
-      'absent' => absent,
-      default  => 'file',
-    },
-    notify => Class['nginx::service'],
-    owner  => $owner,
-    group  => $group,
-    mode   => $mode,
-  }
-
   # Add IPv6 Logic Check - Nginx service will not start if ipv6 is enabled
   # and support does not exist for it in the kernel.
-  if ($ipv6_enable == true) and (!$facts['networking']['ip6']) {
+  if $ipv6_enable and !$facts['networking']['ip6'] {
     warning('nginx: IPv6 support is not enabled or configured properly')
   }
 
@@ -109,6 +97,7 @@ define nginx::resource::streamhost (
     mode    => $mode,
     notify  => Class['nginx::service'],
     require => File[$streamhost_dir],
+    tag     => 'nginx_config_file',
   }
 
   concat::fragment { "${name_sanitized}-header":
@@ -118,11 +107,14 @@ define nginx::resource::streamhost (
   }
 
   unless $nginx::confd_only {
-    file{ "${name_sanitized}.conf symlink":
+    file { "${name_sanitized}.conf symlink":
       ensure  => $streamhost_symlink_ensure,
       path    => "${streamhost_enable_dir}/${name_sanitized}.conf",
       target  => $config_file,
-      require => [Concat[$config_file], File[$streamhost_enable_dir]],
+      owner   => $owner,
+      group   => $group,
+      mode    => $mode,
+      require => Concat[$config_file],
       notify  => Class['nginx::service'],
     }
   }

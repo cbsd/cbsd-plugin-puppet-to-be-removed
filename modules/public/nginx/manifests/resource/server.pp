@@ -32,6 +32,7 @@
 #   [*proxy_send_timeout*]         - Override the default proxy send timeout value of 90 seconds
 #   [*proxy_redirect*]             - Override the default proxy_redirect value of off.
 #   [*proxy_buffering*]            - If defined, sets the proxy_buffering to the passed value.
+#   [*proxy_request_buffering*]    - If defined, sets the proxy_request_buffering to the passed value.
 #   [*proxy_max_temp_file_size*]   - Sets the maximum size of the temporary buffer file.
 #   [*proxy_busy_buffers_size*]    - Sets the total size of buffers that can be
 #     busy sending a response to the client while the response is not yet fully read.
@@ -130,6 +131,7 @@
 #   [*log_by_lua_file*]            - Equivalent to log_by_lua, except that the file specified by <path-to-lua-script-file> contains the Lua
 #     code, or, as from the v0.5.0rc32 release, the Lua/LuaJIT bytecode to be executed.
 #   [*gzip_types*]                 - Defines gzip_types, nginx default is text/html
+#   [*gzip_static*]                - Defines gzip_static, nginx default is off
 #   [*owner*]                      - Defines owner of the .conf file
 #   [*group*]                      - Defines group of the .conf file
 #   [*mode*]                       - Defines mode of the .conf file
@@ -171,24 +173,24 @@ define nginx::resource::server (
   Optional[Variant[String, Boolean]] $ssl_cert                                   = undef,
   Optional[String] $ssl_client_cert                                              = undef,
   String $ssl_verify_client                                                      = 'on',
-  Optional[String] $ssl_dhparam                                                  = $nginx::ssl_dhparam,
+  Optional[String] $ssl_dhparam                                                  = undef,
   Optional[String] $ssl_ecdh_curve                                               = undef,
   Boolean $ssl_redirect                                                          = false,
   Optional[Integer] $ssl_redirect_port                                           = undef,
   Optional[Variant[String, Boolean]] $ssl_key                                    = undef,
   Integer $ssl_port                                                              = 443,
-  Enum['on', 'off'] $ssl_prefer_server_ciphers                                   = $nginx::ssl_prefer_server_ciphers,
-  String $ssl_protocols                                                          = $nginx::ssl_protocols,
-  $ssl_buffer_size                                                               = undef,
-  String $ssl_ciphers                                                            = $nginx::ssl_ciphers,
-  String $ssl_cache                                                              = 'shared:SSL:10m',
+  Optional[Enum['on', 'off']] $ssl_prefer_server_ciphers                         = undef,
+  Optional[String] $ssl_protocols                                                = undef,
+  Optional[String] $ssl_buffer_size                                              = undef,
+  Optional[String] $ssl_ciphers                                                  = undef,
+  Optional[String] $ssl_cache                                                    = undef,
   Optional[String] $ssl_crl                                                      = undef,
   Boolean $ssl_stapling                                                          = false,
   Optional[String] $ssl_stapling_file                                            = undef,
   Optional[String] $ssl_stapling_responder                                       = undef,
   Boolean $ssl_stapling_verify                                                   = false,
-  String $ssl_session_timeout                                                    = '5m',
-  Optional[String] $ssl_session_tickets                                          = undef,
+  Optional[String] $ssl_session_timeout                                          = undef,
+  Optional[Enum['on', 'off']] $ssl_session_tickets                               = undef,
   Optional[String] $ssl_session_ticket_key                                       = undef,
   Optional[String] $ssl_trusted_cert                                             = undef,
   Optional[Integer] $ssl_verify_depth                                            = undef,
@@ -196,7 +198,7 @@ define nginx::resource::server (
   Enum['on', 'off'] $spdy                                                        = $nginx::spdy,
   Enum['on', 'off'] $http2                                                       = $nginx::http2,
   Optional[String] $proxy                                                        = undef,
-  Optional[String]$proxy_redirect                                                = undef,
+  Optional[String] $proxy_redirect                                               = undef,
   String $proxy_read_timeout                                                     = $nginx::proxy_read_timeout,
   String $proxy_send_timeout                                                     = $nginx::proxy_send_timeout,
   $proxy_connect_timeout                                                         = $nginx::proxy_connect_timeout,
@@ -213,6 +215,7 @@ define nginx::resource::server (
   Optional[String] $proxy_http_version                                           = undef,
   Optional[String] $proxy_set_body                                               = undef,
   Optional[String] $proxy_buffering                                              = undef,
+  Optional[String] $proxy_request_buffering                                      = undef,
   Optional[Nginx::Size] $proxy_max_temp_file_size                                = undef,
   Optional[Nginx::Size] $proxy_busy_buffers_size                                 = undef,
   Array $resolver                                                                = [],
@@ -227,7 +230,8 @@ define nginx::resource::server (
   Array $index_files                                                             = [
     'index.html',
     'index.htm',
-    'index.php'],
+    'index.php',
+  ],
   Optional[String] $autoindex                                                    = undef,
   Optional[Enum['on', 'off']] $autoindex_exact_size                              = undef,
   Optional[Enum['html', 'xml', 'json', 'jsonp']] $autoindex_format               = undef,
@@ -272,6 +276,7 @@ define nginx::resource::server (
   $string_mappings                                                               = {},
   $geo_mappings                                                                  = {},
   Optional[String] $gzip_types                                                   = undef,
+  Optional[String] $gzip_static                                                  = undef,
   String $owner                                                                  = $nginx::global_owner,
   String $group                                                                  = $nginx::global_group,
   String $mode                                                                   = $nginx::global_mode,
@@ -281,7 +286,6 @@ define nginx::resource::server (
   Hash $locations                                                                = {},
   Hash $locations_defaults                                                       = {},
 ) {
-
   if ! defined(Class['nginx']) {
     fail('You must include the nginx base class before using any defined resources')
   }
@@ -310,7 +314,7 @@ define nginx::resource::server (
       'absent' => absent,
       default  => 'file',
     },
-    notify => Class['::nginx::service'],
+    notify => Class['nginx::service'],
     owner  => $owner,
     group  => $group,
     mode   => $mode,
@@ -343,8 +347,9 @@ define nginx::resource::server (
     owner   => $owner,
     group   => $group,
     mode    => $mode,
-    notify  => Class['::nginx::service'],
+    notify  => Class['nginx::service'],
     require => File[$server_dir],
+    tag     => 'nginx_config_file',
   }
 
   # This deals with a situation where the listen directive for SSL doesn't match
@@ -365,7 +370,7 @@ define nginx::resource::server (
   # ssl redirect and no ssl -> false
   if (!$ssl_redirect or $ssl) and $use_default_location {
     # Create the default location reference for the server
-    nginx::resource::location {"${name_sanitized}-default":
+    nginx::resource::location { "${name_sanitized}-default":
       ensure                      => $ensure,
       server                      => $name_sanitized,
       ssl                         => $ssl,
@@ -392,6 +397,7 @@ define nginx::resource::server (
       proxy_set_body              => $proxy_set_body,
       proxy_cache_bypass          => $proxy_cache_bypass,
       proxy_buffering             => $proxy_buffering,
+      proxy_request_buffering     => $proxy_request_buffering,
       proxy_busy_buffers_size     => $proxy_busy_buffers_size,
       proxy_max_temp_file_size    => $proxy_max_temp_file_size,
       fastcgi                     => $fastcgi,
@@ -429,16 +435,16 @@ define nginx::resource::server (
 
   if $fastcgi != undef and !defined(File[$fastcgi_params]) and $fastcgi_params == "${nginx::conf_dir}/fastcgi.conf" {
     file { $fastcgi_params:
-      ensure  => present,
-      mode    => '0644',
+      ensure  => file,
+      mode    => $nginx::global_mode,
       content => template('nginx/server/fastcgi.conf.erb'),
     }
   }
 
   if $uwsgi != undef and !defined(File[$uwsgi_params]) and $uwsgi_params == "${nginx::conf_dir}/uwsgi_params" {
     file { $uwsgi_params:
-      ensure  => present,
-      mode    => '0644',
+      ensure  => file,
+      mode    => $nginx::global_mode,
       content => template('nginx/server/uwsgi_params.erb'),
     }
   }
@@ -476,22 +482,22 @@ define nginx::resource::server (
   }
 
   unless $nginx::confd_only {
-    file{ "${name_sanitized}.conf symlink":
+    file { "${name_sanitized}.conf symlink":
       ensure  => $server_symlink_ensure,
       path    => "${server_enable_dir}/${name_sanitized}.conf",
       target  => $config_file,
       require => [File[$server_dir], Concat[$config_file]],
-      notify  => Class['::nginx::service'],
+      notify  => Class['nginx::service'],
     }
   }
 
   create_resources('::nginx::resource::map', $string_mappings)
   create_resources('::nginx::resource::geo', $geo_mappings)
   create_resources('::nginx::resource::location', $locations, {
-    ensure   => $ensure,
-    server   => $name_sanitized,
-    ssl      => $ssl,
-    ssl_only => $ssl_only,
-    www_root => $www_root,
+      ensure   => $ensure,
+      server   => $name_sanitized,
+      ssl      => $ssl,
+      ssl_only => $ssl_only,
+      www_root => $www_root,
   } + $locations_defaults)
 }

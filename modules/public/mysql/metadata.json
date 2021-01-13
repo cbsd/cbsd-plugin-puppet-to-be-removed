@@ -1,24 +1,34 @@
 {
   "name": "puppetlabs-mysql",
-  "version": "3.10.0",
-  "author": "Puppet Labs",
+  "version": "10.7.0",
+  "author": "puppetlabs",
   "summary": "Installs, configures, and manages the MySQL service.",
   "license": "Apache-2.0",
-  "source": "git://github.com/puppetlabs/puppetlabs-mysql.git",
+  "source": "git://github.com/puppetlabs/puppetlabs-mysql",
   "project_page": "http://github.com/puppetlabs/puppetlabs-mysql",
   "issues_url": "https://tickets.puppetlabs.com/browse/MODULES",
   "dependencies": [
-    {"name":"puppetlabs/stdlib","version_requirement":">= 3.2.0 < 5.0.0"},
-    {"name":"puppet/staging","version_requirement":">= 1.0.1 < 3.0.0"}
+    {
+      "name": "puppetlabs/stdlib",
+      "version_requirement": ">= 3.2.0 < 7.0.0"
+    },
+    {
+      "name": "puppetlabs/translate",
+      "version_requirement": ">= 1.0.0 < 3.0.0"
+    },
+    {
+      "name": "puppetlabs/resource_api",
+      "version_requirement": ">= 1.0.0 < 2.0.0"
+    }
   ],
-  "data_provider": null,
   "operatingsystem_support": [
     {
       "operatingsystem": "RedHat",
       "operatingsystemrelease": [
         "5",
         "6",
-        "7"
+        "7",
+        "8"
       ]
     },
     {
@@ -26,7 +36,8 @@
       "operatingsystemrelease": [
         "5",
         "6",
-        "7"
+        "7",
+        "8"
       ]
     },
     {
@@ -40,7 +51,6 @@
     {
       "operatingsystem": "Scientific",
       "operatingsystemrelease": [
-        "5",
         "6",
         "7"
       ]
@@ -48,33 +58,37 @@
     {
       "operatingsystem": "SLES",
       "operatingsystemrelease": [
-        "11 SP1",
-        "12"
+        "11",
+        "12",
+        "15"
       ]
     },
     {
       "operatingsystem": "Debian",
       "operatingsystemrelease": [
-        "6",
-        "7",
-        "8"
+        "8",
+        "9",
+        "10"
       ]
     },
     {
       "operatingsystem": "Ubuntu",
       "operatingsystemrelease": [
-        "10.04",
-        "12.04",
         "14.04",
-        "16.04"
+        "16.04",
+        "18.04",
+        "20.04"
       ]
     }
   ],
   "requirements": [
     {
       "name": "puppet",
-      "version_requirement": ">= 3.0.0 < 5.0.0"
+      "version_requirement": ">= 5.5.10 < 7.0.0"
     }
   ],
-  "description": "MySQL module"
+  "description": "MySQL module",
+  "template-url": "https://github.com/puppetlabs/pdk-templates#master",
+  "template-ref": "heads/master-0-gd610ead",
+  "pdk-version": "1.18.1"
 }
